@@ -1,0 +1,34 @@
+# --- Secrets & configuration locale ---
+.env
+.env.*
+!.env.example
+
+# --- Données personnelles / runtime (ne JAMAIS committer) ---
+/data/
+/uploads/
+/backups/
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Rust (backend) ---
+/target/
+**/*.rs.bk
+
+# --- Node / SvelteKit (front) ---
+node_modules/
+/front/.svelte-kit/
+/front/build/
+/front/dist/
+.vite/
+
+# --- Outils / OS / éditeurs ---
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.swp
+
+# --- Réglages locaux de l'agent ---
+.claude/settings.local.json
