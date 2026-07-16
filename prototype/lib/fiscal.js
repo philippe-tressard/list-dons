@@ -119,4 +119,6 @@ function estimer(dons, revenuImposable, annee) {
   };
 }
 
-module.exports = { estimer, baremePour, CATEGORIES, euros };
+// BAREMES exporté (référence, pas une copie) pour permettre à fiscal.selftest.js de vérifier
+// l'isolation par année sans dupliquer la logique de résolution ni toucher aux vraies données.
+module.exports = { estimer, baremePour, CATEGORIES, euros, BAREMES };

@@ -3,11 +3,26 @@
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const app = $('#app');
+function genererParametresDemo() {
+  return {
+    demoFactor: 0.6 + Math.random() * 1.2,
+    // Décalage minimum garanti (5 à 30 €) : évite qu'un facteur proche de 1 laisse par
+    // coïncidence un montant rond (revenu, don) identique à la vraie valeur.
+    demoOffset: (Math.random() < 0.5 ? -1 : 1) * (500 + Math.round(Math.random() * 2500)),
+  };
+}
 let state = {
   year: new Date().getFullYear(), tab: 'dashboard', cats: [],
   demo: localStorage.getItem('ld_demo') === '1',
-  demoFactor: parseFloat(localStorage.getItem('ld_demo_factor')) || 1,
+  demoFactor: parseFloat(localStorage.getItem('ld_demo_factor')) || 0,
+  demoOffset: parseFloat(localStorage.getItem('ld_demo_offset')) || 0,
 };
+// Démo active dès le chargement (session précédente) mais paramètres absents/invalides : régénère.
+if (state.demo && !state.demoFactor) {
+  Object.assign(state, genererParametresDemo());
+  localStorage.setItem('ld_demo_factor', String(state.demoFactor));
+  localStorage.setItem('ld_demo_offset', String(state.demoOffset));
+}
 
 async function api(method, path, body, isForm) {
   const opt = { method, headers: {} };
@@ -41,9 +56,12 @@ function closeModal() { const m = $('.modal-backdrop'); if (m) m.remove(); }
 function toggleDemo() {
   const activation = !state.demo;
   state.demo = activation;
-  if (activation) { state.demoFactor = 0.6 + Math.random() * 1.2; demoMapCache = null; }
+  if (activation) { Object.assign(state, genererParametresDemo()); demoMapCache = null; }
   localStorage.setItem('ld_demo', state.demo ? '1' : '0');
-  if (activation) localStorage.setItem('ld_demo_factor', String(state.demoFactor));
+  if (activation) {
+    localStorage.setItem('ld_demo_factor', String(state.demoFactor));
+    localStorage.setItem('ld_demo_offset', String(state.demoOffset));
+  }
   renderMain();
 }
 function lettreDemo(i) {
@@ -51,9 +69,12 @@ function lettreDemo(i) {
   while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
   return s;
 }
+// Échelle + décalage garantissent que le montant affiché diffère toujours du réel,
+// même pour des sommes rondes à l'euro (revenu imposable, dons) et un facteur proche de 1.
 function fauxMontant(cents) {
   if (!cents) return 0;
-  return Math.max(100, Math.round((cents * state.demoFactor) / 100) * 100);
+  const v = Math.round((cents * state.demoFactor + state.demoOffset) / 100) * 100;
+  return Math.max(100, v);
 }
 function anonymiserBeneficiaire(b, map) {
   if (!b) return b;
@@ -153,7 +174,7 @@ async function renderMain() {
       ${[['dashboard', 'Tableau de bord'], ['benef', 'Bénéficiaires'], ['params', 'Paramètres']].map(([k, l]) => `<button data-tab="${k}" class="${state.tab === k ? 'active' : ''}">${l}</button>`).join('')}
     </nav>
     <main id="content"></main>
-    <p class="disclaimer">Estimation indicative — ne remplace pas votre déclaration officielle ni un conseil fiscal.<br>Prototype de test — implémentation cible en Rust.</p>
+    <p class="disclaimer">Estimation indicative — ne remplace pas votre déclaration officielle ni un conseil fiscal.</p>
     <footer class="app-footer">
       © ${anneeCourante} List-dons &nbsp;·&nbsp; Licence MIT &nbsp;·&nbsp; <a href="/mentions-legales">Mentions légales</a>
     </footer>`;
@@ -602,8 +623,7 @@ async function tabParams() {
     </div>
     <div class="card">
       <h2>À propos</h2>
-      <p class="muted">Prototype fonctionnel de List-dons (Node). Moteur fiscal art. 200 CGI, barèmes 2025–2027. Données stockées localement.<br>
-      Implémentation cible : backend Rust + SvelteKit (voir les spécifications du dépôt).</p>
+      <p class="muted">List-dons. Moteur fiscal art. 200 CGI, barèmes 2025–2027. Données stockées localement.</p>
     </div>`;
   $('#saverev').onclick = async () => { await api('PATCH', '/exercices/' + state.year, { revenuImposable: $('#revenu').value }); alert('Enregistré.'); tabParams(); };
 }

@@ -86,7 +86,8 @@ Foyer 1───1 ProfilFiscal
 
 ## Règles d'intégrité
 - L'année d'un don découle de sa **date de versement**.
-- Taux/plafonds **jamais codés en dur** — table `bareme_fiscal` datée.
+- Taux/plafonds **jamais codés en dur** — table `bareme_fiscal` datée, résolue **uniquement** par l'année de l'exercice estimé (héritage N ← N-1 si absent). **Isolation garantie** : modifier/ajouter le barème d'une année ne doit jamais changer le résultat d'un exercice antérieur déjà clos. Vérifié côté prototype (`prototype/lib/fiscal.selftest.js`, exécutable via `node lib/fiscal.selftest.js`).
+- Le **plafond de 20 %** fait partie du barème daté (comme tout autre taux/plafond) — jamais une constante séparée codée ailleurs dans la logique ou l'IHM.
 - Un bénéficiaire référencé par un don n'est pas supprimé (**archivage**).
 
 ## Barème fiscal
