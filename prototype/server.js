@@ -126,8 +126,8 @@ api.post('/beneficiaires/:id/appreciations', (req, res) => {
 function catDe(db, beneficiaireId) { return db.beneficiaires.find((b) => b.id === beneficiaireId)?.categorie || 'ir_general'; }
 api.get('/dons', (req, res) => {
   const db = store.get();
-  const annee = parseInt(req.query.annee, 10);
-  const dons = db.dons.filter((d) => d.annee === annee).sort((a, b) => (a.date < b.date ? 1 : -1))
+  const annee = req.query.annee ? parseInt(req.query.annee, 10) : null;
+  const dons = db.dons.filter((d) => annee === null || d.annee === annee).sort((a, b) => (a.date < b.date ? 1 : -1))
     .map((d) => ({ ...d, beneficiaire: db.beneficiaires.find((b) => b.id === d.beneficiaireId) || null }));
   res.json(dons);
 });

@@ -29,6 +29,7 @@
 | 2026-07-16 | 1.8     | Claude | **Suivi/appréciation du bénéficiaire** (entité `AppreciationBeneficiaire` : journal daté ton+commentaire + indicateur ; informatif, sans impact fiscal). **Raison du don** : pas de champ dédié — réutilise la **note facultative** du don (factorisation). |
 | 2026-07-16 | 1.9     | Claude | **Dons uniques vs récurrents** (§5.4 + entité `DonRecurrent`) : fréquences unique/mensuel/trimestriel/annuel ; l'engagement **génère un `Don` par échéance** rattaché à **son année d'imposition** (réutilise le moteur, zéro cas spécial) ; `Don` = source de vérité éditable ; **arrêt** de la récurrence + rappel de résilier le prélèvement réel ; reçu annuel récapitulatif. |
 | 2026-07-16 | 2.0     | Claude | **Anonymisation pour publication** : exemple §6.7 rendu fictif (bénéficiaires génériques, revenu illustratif), identifiants (SIREN, n° de reçu) et IP LAN retirés ; journal nettoyé. Ajout des fichiers d'amorçage du dépôt (README, LICENSE MIT, .gitignore). |
+| 2026-07-16 | 2.1     | Claude | **IHM (prototype)** : édition d'un don et d'un bénéficiaire déjà saisis ; **coordonnées du bénéficiaire** (adresse, téléphone, URL, email — tous optionnels) ; rappel N-1 branché au tableau de bord (colonne montant N-1, liste des non-renouvelés) ; **indicateur de suivi** enrichi d'un 4ᵉ état **« de confiance »** ; **EF-052 promu MVP** : historique pluriannuel en barres empilées par bénéficiaire. |
 
 ---
 
@@ -102,7 +103,7 @@ List-dons applique un socle de qualité cohérent sur tout le projet :
 
 **AnnéeImposition** (= exercice fiscal) : année ; revenu imposable estimé (optionnel, pour le plafond 20 %) ; statut (en cours / clôturée).
 
-**Bénéficiaire** *(terme canonique — l'entité qui reçoit le don ; « organisme » en synonyme)* : **référentiel réutilisable et indépendant de l'année**. Champs : nom ; identifiant (SIREN/RNA, optionnel) ; **catégorie fiscale** = *enum fermé* pointant vers un `code régime` (liste exhaustive en **§6.2** : `ir_general`, `ir_coluche`, `ir_partis`, `ir_campagne`, `ifi_dons`, `is_mecenat`…) ; habilité à délivrer des reçus (bool) ; URL ; notes ; **indicateur de suivi** (neutre / à surveiller / à éviter) ; actif/archivé ; **0..n appréciations**.
+**Bénéficiaire** *(terme canonique — l'entité qui reçoit le don ; « organisme » en synonyme)* : **référentiel réutilisable et indépendant de l'année**. Champs : nom ; identifiant (SIREN/RNA, optionnel) ; **catégorie fiscale** = *enum fermé* pointant vers un `code régime` (liste exhaustive en **§6.2** : `ir_general`, `ir_coluche`, `ir_partis`, `ir_campagne`, `ifi_dons`, `is_mecenat`…) ; habilité à délivrer des reçus (bool) ; adresse, téléphone, URL, email (coordonnées, optionnelles) ; notes ; **indicateur de suivi** (de confiance / neutre / à surveiller / à éviter) ; actif/archivé ; **0..n appréciations**.
 - On saisit les infos d'un bénéficiaire **une seule fois** ; ensuite on le **sélectionne** (voir §5.1). Il est **partagé entre toutes les années** : un même bénéficiaire peut recevoir des dons en 2025, 2026, 2027…
 
 **AppreciationBeneficiaire** *(journal daté — suivi qualitatif)* : rattachée à un **Bénéficiaire** ; date ; **ton** (positif / neutre / déçu) ; commentaire. Permet de **noter et commenter les actions** d'un bénéficiaire dans le temps (ex. une action décevante) pour éclairer la décision de renouvellement. **Informatif — aucun impact fiscal.**
@@ -329,10 +330,11 @@ Réservé aux **entreprises**. L'application cible un **particulier** → **non 
 - [ ] **Authentification** (mono-foyer) : connexion, déconnexion, init du compte au 1er lancement, changement de mot de passe ([`specs/web/authentification.md`](specs/web/authentification.md)).
 - [ ] Sélecteur / gestion des **années d'imposition** (exercices).
 - [ ] **Référentiel de bénéficiaires** réutilisable : CRUD (avec catégorie fiscale), **sélection par autocomplétion** + création en ligne, anti-doublon (§5.1).
-- [ ] **Suivi / appréciation du bénéficiaire** : journal daté (date + commentaire + ton) + indicateur (à surveiller / à éviter) ; aide à la décision de renouvellement. Informatif, sans impact fiscal.
+- [ ] **Suivi / appréciation du bénéficiaire** : journal daté (date + commentaire + ton) + indicateur (de confiance / neutre / à surveiller / à éviter) ; aide à la décision de renouvellement. Informatif, sans impact fiscal.
 - [ ] CRUD **Dons** (montant, date, **bénéficiaire sélectionné**, moyen de paiement, reçu, note/raison facultative).
 - [ ] **Dons récurrents** (§5.4) : engagement (fréquence unique/mensuel/trimestriel/annuel), **génération des versements par échéance** rattachés à leur année, **arrêt** de la récurrence, reçu annuel.
 - [ ] **Ouverture d'un nouvel exercice** : **rappel des bénéficiaires N-1** + report rapide d'un don + **comparatif N vs N-1** (§5.1).
+- [ ] **Historique pluriannuel** (tableau de bord) : graphique en barres empilées par bénéficiaire, une barre par exercice saisi.
 - [ ] Synthèse **par bénéficiaire** + **par catégorie**.
 - [ ] **Estimation de la réduction d'impôt** + détail du calcul.
 - [ ] Rappel des **cases de déclaration**.

@@ -103,11 +103,12 @@ async function renderMain() {
 // ---------- Dashboard ----------
 async function tabDashboard() {
   const c = $('#content');
-  const [est, dons, benefs, rappel] = await Promise.all([
+  const [est, dons, benefs, rappel, tousLesDons] = await Promise.all([
     api('GET', '/estimation?annee=' + state.year),
     api('GET', '/dons?annee=' + state.year),
     api('GET', '/beneficiaires'),
     api('GET', '/rappel-n1?annee=' + state.year),
+    api('GET', '/dons'),
   ]);
   const montantN1Par = {}; rappel.forEach((l) => { montantN1Par[l.beneficiaire.id] = l.montantN1; });
   const nonRenouveles = rappel.filter((l) => l.statut === 'non_renouvele').sort((a, b) => b.montantN1 - a.montantN1);
@@ -191,6 +192,11 @@ async function tabDashboard() {
           </li>`).join('')}
         </ul>
       </div>` : ''}
+    </div>
+
+    <div class="card">
+      <h2>Historique pluriannuel par bénéficiaire</h2>
+      ${graphiqueHistorique(tousLesDons)}
     </div>`;
 
   // handlers
@@ -276,12 +282,62 @@ function editDon(don, benefs) {
     } catch (err) { m.querySelector('#edonerr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
   };
 }
+// Historique pluriannuel : barres empilées par bénéficiaire (SVG fait main, sans dépendance).
+function couleurBenef(index) { return `hsl(${(index * 137.5) % 360}, 55%, 48%)`; }
+function graphiqueHistorique(tousLesDons) {
+  if (!tousLesDons.length) return '<p class="muted">Pas encore assez de données pour un historique pluriannuel.</p>';
+  const parAnnee = {};
+  tousLesDons.forEach((d) => { (parAnnee[d.annee] ??= {})[d.beneficiaireId] = (parAnnee[d.annee]?.[d.beneficiaireId] || 0) + d.montant; });
+  const annees = Object.keys(parAnnee).map(Number).sort((a, b) => a - b);
+  if (annees.length < 2) return '<p class="muted">Historique disponible à partir de 2 exercices avec des dons saisis.</p>';
+
+  const totalParBenef = {}, nomParBenef = {};
+  tousLesDons.forEach((d) => {
+    totalParBenef[d.beneficiaireId] = (totalParBenef[d.beneficiaireId] || 0) + d.montant;
+    nomParBenef[d.beneficiaireId] = d.beneficiaire?.nom || '?';
+  });
+  const ordre = Object.keys(totalParBenef).sort((a, b) => totalParBenef[b] - totalParBenef[a]);
+  const maxTotal = Math.max(...annees.map((a) => Object.values(parAnnee[a]).reduce((s, v) => s + v, 0)), 1);
+
+  const ML = 64, BARW = 48, GAP = 28, H = 220, MT = 12, MB = 30;
+  const svgW = ML + annees.length * (BARW + GAP);
+  const svgH = MT + H + MB;
+  const scale = H / maxTotal;
+
+  const barres = annees.map((an, i) => {
+    const x = ML + i * (BARW + GAP);
+    let yOffset = 0;
+    const segments = ordre.map((id, bi) => {
+      const v = parAnnee[an][id] || 0;
+      if (!v) return '';
+      const h = v * scale;
+      const y = MT + H - yOffset - h;
+      yOffset += h;
+      return `<rect x="${x}" y="${y}" width="${BARW}" height="${h}" fill="${couleurBenef(bi)}"><title>${esc(nomParBenef[id])} — ${an} — ${fmt(v)}</title></rect>`;
+    }).join('');
+    return segments + `<text x="${x + BARW / 2}" y="${MT + H + 20}" text-anchor="middle" class="chart-label">${an}</text>`;
+  }).join('');
+
+  const grille = [0, 0.5, 1].map((f) => {
+    const y = MT + H - H * f;
+    return `<line x1="${ML - 8}" y1="${y}" x2="${svgW}" y2="${y}" class="chart-grid" />
+      <text x="${ML - 12}" y="${y + 4}" text-anchor="end" class="chart-label">${fmt(Math.round(maxTotal * f))}</text>`;
+  }).join('');
+
+  const legendeItems = ordre.slice(0, 10);
+  const reste = ordre.length - legendeItems.length;
+  const legende = legendeItems.map((id, i) => `<span class="chart-legend-item"><i style="background:${couleurBenef(i)}"></i>${esc(nomParBenef[id])} <span class="muted">(${fmt(totalParBenef[id])})</span></span>`).join('')
+    + (reste > 0 ? `<span class="chart-legend-item muted">+ ${reste} autre${reste > 1 ? 's' : ''}</span>` : '');
+
+  return `<svg viewBox="0 0 ${svgW} ${svgH}" class="chart-svg">${grille}${barres}</svg><div class="chart-legend">${legende}</div>`;
+}
 function caseBadge(cat) {
   const map = { ir_general: ['7UF', 'uf'], ir_coluche: ['7UD', 'ud'], ir_partis: ['7UH', 'uh'] };
   const m = map[cat] || map.ir_general; return `<span class="badge badge-${m[1]}">${m[0]}</span>`;
 }
 // Notation affective du bénéficiaire (indicateurSuivi), rendue en badge plutôt qu'en texte brut.
 const SUIVI = {
+  confiance: { icon: '💚', label: 'De confiance', cls: 'suivi-confiance' },
   neutre: { icon: '🤍', label: 'Neutre', cls: 'suivi-neutre' },
   surveiller: { icon: '🧡', label: 'À surveiller', cls: 'suivi-surveiller' },
   eviter: { icon: '💔', label: 'À éviter', cls: 'suivi-eviter' },
@@ -323,7 +379,7 @@ async function tabBenef() {
       ${benefs.length ? `<table><thead><tr><th>Nom</th><th>Catégorie</th><th>SIREN/RNA</th><th>Contact</th><th>Suivi</th><th></th></tr></thead><tbody>
         ${benefs.map((b) => `<tr><td>${esc(b.nom)}${b.archive ? ' <span class="muted">(archivé)</span>' : ''}</td><td>${esc(catLabel(b.categorie))}</td><td>${esc(b.identifiant) || '—'}</td>
           <td>${contactCell(b)}</td>
-          <td><select data-suivi="${b.id}"><option value="neutre" ${b.indicateurSuivi === 'neutre' ? 'selected' : ''}>neutre</option><option value="surveiller" ${b.indicateurSuivi === 'surveiller' ? 'selected' : ''}>⚠️ à surveiller</option><option value="eviter" ${b.indicateurSuivi === 'eviter' ? 'selected' : ''}>⛔ à éviter</option></select></td>
+          <td><select data-suivi="${b.id}">${Object.entries(SUIVI).map(([code, s]) => `<option value="${code}" ${b.indicateurSuivi === code ? 'selected' : ''}>${s.icon} ${s.label}</option>`).join('')}</select></td>
           <td><button class="btn-link" data-editb="${b.id}">✏️</button></td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Aucun bénéficiaire.</p>'}
     </div>`;

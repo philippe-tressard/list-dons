@@ -11,7 +11,7 @@ Identifiants `EF-xxx`. Priorité : **M** (MVP) / **B** (backlog).
 - **EF-011 (M)** — **Sélection par autocomplétion** d'un bénéficiaire existant à la saisie d'un don.
 - **EF-012 (M)** — **Création en ligne** d'un bénéficiaire depuis la saisie du don, avec **anti-doublon**.
 - **EF-013 (M)** — **Archivage** (pas suppression) d'un bénéficiaire référencé par un don.
-- **EF-015 (M)** — **Suivi / appréciation du bénéficiaire** : journal daté (date + commentaire + ton positif/neutre/déçu) + **indicateur** (neutre / à surveiller / à éviter) affiché sur la fiche et dans le rappel N-1. **Informatif, sans impact fiscal.**
+- **EF-015 (M)** — **Suivi / appréciation du bénéficiaire** : journal daté (date + commentaire + ton positif/neutre/déçu) + **indicateur** (de confiance / neutre / à surveiller / à éviter) affiché sur la fiche et dans le rappel N-1. **Informatif, sans impact fiscal.**
 - **EF-014 (B)** — Fusion de doublons ; référentiel pré-rempli.
 - **EF-016 (B)** — Étiquettes structurées optionnelles pour la **raison d'un don** (don régulier / appel / évènement / optimisation…). *Par défaut, la raison tient dans le champ « note » facultatif du don (EF-020) — pas de champ séparé.*
 
@@ -42,7 +42,8 @@ Identifiants `EF-xxx`. Priorité : **M** (MVP) / **B** (backlog).
 ## Comparatif / rappel
 - **EF-050 (M)** — **Rappel des bénéficiaires N-1** + report rapide à l'ouverture d'un exercice.
 - **EF-051 (M)** — **Comparatif N vs N-1** (écart €/%, statut reconduit/nouveau/non renouvelé).
-- **EF-052 (B)** — Comparatif multi-années ; alerte d'approche du plafond.
+- **EF-052 (M)** — **Comparatif multi-années** : graphique en barres empilées par bénéficiaire (tableau de bord).
+- **EF-053 (B)** — Alerte d'approche du plafond de 20 %.
 
 ## Authentification (voir [`authentification.md`](authentification.md))
 - **EF-070 (M)** — **Connexion** obligatoire (identifiant + mot de passe) ; session par cookie sécurisé.

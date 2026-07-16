@@ -76,9 +76,18 @@ th { color: var(--muted); font-weight: 600; }
 .nonrenew-name { font-weight: 600; }
 .nonrenew-amount { margin-left: auto; }
 .suivi-badge { font-size: .8rem; padding: .15rem .55rem; }
+.suivi-confiance { border-color: var(--success); color: var(--success); background: #E6F4EE; }
 .suivi-neutre { border-color: var(--border); color: var(--muted); }
 .suivi-surveiller { border-color: var(--warn); color: var(--warn); background: #FDF3E0; }
 .suivi-eviter { border-color: var(--danger); color: var(--danger); background: #FDEDEC; }
+
+/* Historique pluriannuel (graphique SVG) */
+.chart-svg { width: 100%; height: auto; display: block; }
+.chart-label { fill: var(--muted); font-size: 10px; }
+.chart-grid { stroke: var(--border); stroke-width: 1; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: .35rem 1rem; margin-top: .75rem; font-size: .85rem; }
+.chart-legend-item { display: inline-flex; align-items: center; gap: .35rem; }
+.chart-legend-item i { width: .7rem; height: .7rem; border-radius: 50%; display: inline-block; flex: none; }
 
 /* Modal */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(13,27,42,.5); display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; z-index: 50; }

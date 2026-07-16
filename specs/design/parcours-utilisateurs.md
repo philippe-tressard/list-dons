@@ -37,8 +37,10 @@ Sélecteur d'année → « Ouvrir l'exercice N »
        pour chacun : montant N-1 + « Reporter un don en N »
   └─ Comparatif N vs N-1 (tableau) : montant N-1 | montant N | écart €/% | statut
        (reconduit · nouveau · non renouvelé)
-       + indicateur de suivi du bénéficiaire (⚠️ à surveiller / ⛔ à éviter)
+       + indicateur de suivi du bénéficiaire (💚 de confiance / ⚠️ à surveiller / ⛔ à éviter)
          → aide à décider de reconduire ou non un don
+  └─ Historique pluriannuel (tableau de bord) : graphique en barres empilées par
+       bénéficiaire, une barre par année d'imposition saisie
 ```
 
 Sur chaque **fiche bénéficiaire** : un **journal d'appréciations daté** (date + ton positif/neutre/déçu + commentaire) pour noter ses actions dans le temps. Purement informatif (aucun effet fiscal), réutilise le composant « fil daté ».

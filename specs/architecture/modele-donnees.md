@@ -28,7 +28,7 @@
 - `habilite_recu` (bool)
 - `adresse`, `telephone`, `url` (site web), `email` (tous optionnels — coordonnées de contact)
 - `notes`
-- `indicateur_suivi` (optionnel — **neutre / à surveiller / à éviter** ; par défaut *neutre*, sinon dérivé de la dernière appréciation) → aide à la décision de renouvellement
+- `indicateur_suivi` (optionnel — **de confiance / neutre / à surveiller / à éviter** ; par défaut *neutre*, sinon dérivé de la dernière appréciation) → aide à la décision de renouvellement
 - `statut` (actif / archivé)
 - 0..n **AppreciationBeneficiaire**
 
