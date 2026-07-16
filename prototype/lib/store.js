@@ -18,7 +18,7 @@ function ensureDirs() {
 const EMPTY = {
   utilisateur: null,           // { identifiant, hash }
   exercices: [],               // { annee, revenuImposable(cents|null), statut }
-  beneficiaires: [],           // { id, nom, identifiant, categorie, habiliteRecu, notes, indicateurSuivi, archive }
+  beneficiaires: [],           // { id, nom, identifiant, categorie, habiliteRecu, adresse, telephone, siteWeb, email, notes, indicateurSuivi, archive }
   appreciations: [],           // { id, beneficiaireId, date, ton, commentaire }
   dons: [],                    // { id, annee, beneficiaireId, date, montant(cents), moyen, numeroRecu, note, recurrentId, justificatifs:[{id,nom,fichier}] }
   recurrents: [],              // { id, beneficiaireId, montant(cents), frequence, dateDebut, dateFin, moyen, note, statut }

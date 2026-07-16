@@ -68,6 +68,16 @@ th { color: var(--muted); font-weight: 600; }
 .alert-info { background: #EAF2FB; color: var(--info); }
 .disclaimer { font-size: .75rem; color: var(--muted); text-align: center; margin: 1.5rem 0 .5rem; }
 
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(13,27,42,.5); display: flex; align-items: flex-start; justify-content: center; padding: 2rem 1rem; overflow-y: auto; z-index: 50; }
+.modal { background: var(--surface); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 1.25rem; width: 100%; max-width: 520px; }
+.modal h2 { margin-top: 0; display: flex; align-items: center; justify-content: space-between; }
+.modal .close { background: transparent; border: none; font-size: 1.4rem; cursor: pointer; color: var(--muted); line-height: 1; }
+.attach-list { list-style: none; padding: 0; margin: .3rem 0 0; }
+.attach-list li { display: flex; align-items: center; gap: .5rem; padding: .3rem 0; border-bottom: 1px solid var(--border); font-size: .9rem; }
+.attach-list li a { flex: 1; }
+.btn-link { background: transparent; border: none; color: var(--info); cursor: pointer; padding: 0; font-size: .9rem; }
+
 /* Auth */
 .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
 .auth-card { width: 100%; max-width: 400px; }

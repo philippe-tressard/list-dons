@@ -26,7 +26,8 @@
 - `identifiant` (SIREN / RNA, optionnel)
 - `categorie_fiscale` — **enum fermé** → `code régime` du barème (`ir_general`, `ir_coluche`, `ir_partis`, `ir_campagne`, `ifi_dons`…)
 - `habilite_recu` (bool)
-- `url`, `notes`
+- `adresse`, `telephone`, `url` (site web), `email` (tous optionnels — coordonnées de contact)
+- `notes`
 - `indicateur_suivi` (optionnel — **neutre / à surveiller / à éviter** ; par défaut *neutre*, sinon dérivé de la dernière appréciation) → aide à la décision de renouvellement
 - `statut` (actif / archivé)
 - 0..n **AppreciationBeneficiaire**

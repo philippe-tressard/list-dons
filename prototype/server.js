@@ -103,16 +103,16 @@ api.patch('/exercices/:annee', (req, res) => {
 api.get('/beneficiaires', (req, res) => res.json(store.get().beneficiaires.filter((b) => !b.archive || req.query.all)));
 api.post('/beneficiaires', (req, res) => {
   const db = store.get();
-  const { nom, identifiant, categorie, habiliteRecu, notes } = req.body || {};
+  const { nom, identifiant, categorie, habiliteRecu, adresse, telephone, siteWeb, email, notes } = req.body || {};
   if (!nom || !categorie) return res.status(400).json({ error: 'Nom et catégorie requis' });
-  const b = { id: store.uid(), nom: String(nom).trim(), identifiant: identifiant || '', categorie, habiliteRecu: !!habiliteRecu, notes: notes || '', indicateurSuivi: 'neutre', archive: false };
+  const b = { id: store.uid(), nom: String(nom).trim(), identifiant: identifiant || '', categorie, habiliteRecu: !!habiliteRecu, adresse: adresse || '', telephone: telephone || '', siteWeb: siteWeb || '', email: email || '', notes: notes || '', indicateurSuivi: 'neutre', archive: false };
   db.beneficiaires.push(b); store.save(); res.json(b);
 });
 api.patch('/beneficiaires/:id', (req, res) => {
   const db = store.get();
   const b = db.beneficiaires.find((x) => x.id === req.params.id);
   if (!b) return res.status(404).json({ error: 'Introuvable' });
-  for (const k of ['nom', 'identifiant', 'categorie', 'habiliteRecu', 'notes', 'indicateurSuivi', 'archive']) if (k in req.body) b[k] = req.body[k];
+  for (const k of ['nom', 'identifiant', 'categorie', 'habiliteRecu', 'adresse', 'telephone', 'siteWeb', 'email', 'notes', 'indicateurSuivi', 'archive']) if (k in req.body) b[k] = req.body[k];
   store.save(); res.json(b);
 });
 api.get('/beneficiaires/:id/appreciations', (req, res) => res.json(store.get().appreciations.filter((a) => a.beneficiaireId === req.params.id).sort((a, b) => (a.date < b.date ? 1 : -1))));
@@ -200,6 +200,16 @@ api.get('/justificatifs/:donId/:jId', (req, res) => {
   const j = d?.justificatifs.find((x) => x.id === req.params.jId);
   if (!j) return res.status(404).end();
   res.download(path.join(store.UPLOAD_DIR, j.fichier), j.nom);
+});
+api.delete('/dons/:donId/justificatifs/:jId', (req, res) => {
+  const db = store.get();
+  const d = db.dons.find((x) => x.id === req.params.donId);
+  if (!d) return res.status(404).json({ error: 'Don introuvable' });
+  const j = d.justificatifs.find((x) => x.id === req.params.jId);
+  if (!j) return res.status(404).json({ error: 'Justificatif introuvable' });
+  try { fs.unlinkSync(path.join(store.UPLOAD_DIR, j.fichier)); } catch { /* fichier déjà absent */ }
+  d.justificatifs = d.justificatifs.filter((x) => x.id !== j.id);
+  store.save(); res.json({ ok: true });
 });
 
 // Estimation
