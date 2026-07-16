@@ -3,27 +3,12 @@
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const app = $('#app');
-// Facteur d'échelle PUR (pas de décalage additif) : un décalage constant casserait la
-// linéarité des totaux (somme des cases ≠ total donné, somme du détail ≠ réduction totale…).
-// L'écart minimum de 20 % avec 1 suffit à écarter toute coïncidence avec la vraie valeur pour
-// des montants réalistes (dons, revenu), tout en gardant fauxMontant(a)+fauxMontant(b) ≈
-// fauxMontant(a+b) — cohérent à l'écran.
-function genererParametresDemo() {
-  const signe = Math.random() < 0.5 ? -1 : 1;
-  const ecart = 0.2 + Math.random() * 0.4; // entre 20 % et 60 % d'écart avec 1, jamais moins
-  return { demoFactor: 1 + signe * ecart };
-}
 let state = {
   year: new Date().getFullYear(), tab: 'dashboard', cats: [],
   demo: localStorage.getItem('ld_demo') === '1',
-  demoFactor: parseFloat(localStorage.getItem('ld_demo_factor')) || 0,
 };
-// Démo active dès le chargement (session précédente) mais facteur absent/invalide : régénère.
-if (state.demo && (!state.demoFactor || Math.abs(state.demoFactor - 1) < 0.2)) {
-  Object.assign(state, genererParametresDemo());
-  localStorage.setItem('ld_demo_factor', String(state.demoFactor));
-}
-localStorage.removeItem('ld_demo_offset'); // nettoyage de l'ancien mécanisme (décalage abandonné)
+// Nettoyage des anciens mécanismes de mise à l'échelle (abandonnés au profit d'un masquage simple).
+localStorage.removeItem('ld_demo_factor'); localStorage.removeItem('ld_demo_offset');
 
 async function api(method, path, body, isForm) {
   const opt = { method, headers: {} };
@@ -36,6 +21,11 @@ async function api(method, path, body, isForm) {
   return data;
 }
 const fmt = (c) => (c / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+// Masquage des montants saisis (dons, revenu) et de tout ce qui en est calculé (réduction,
+// cases, plafond…) en mode démo — aucune valeur factice, juste caché. N'affecte pas les
+// constantes du barème (plafonds légaux Coluche/partis), qui ne sont pas des données
+// personnelles : ces affichages continuent d'utiliser fmt() directement.
+const fmtDemo = (c) => (state.demo ? '*****' : fmt(c));
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const catLabel = (code) => (state.cats.find((c) => c.code === code) || {}).libelle || code;
 
@@ -52,27 +42,20 @@ function openModal(titre, innerHtml) {
 function closeModal() { const m = $('.modal-backdrop'); if (m) m.remove(); }
 
 // ---------- Mode démo (confidentialité) ----------
-// Anonymise bénéficiaires et montants à l'écran (présentation/démo). Rien n'est modifié en base :
-// c'est une vue transformée des données juste avant rendu. Le PDF récapitulatif reste réel (usage déclaratif).
+// Anonymise bénéficiaires (nom/coordonnées) à l'écran ET masque tout montant saisi ou calculé
+// à partir d'un montant saisi (affiché « ***** » via fmtDemo, cf. plus haut — aucune valeur
+// factice). Rien n'est modifié en base : vue transformée juste avant rendu. Le PDF
+// récapitulatif reste réel (usage déclaratif).
 function toggleDemo() {
-  const activation = !state.demo;
-  state.demo = activation;
-  if (activation) { Object.assign(state, genererParametresDemo()); demoMapCache = null; }
+  state.demo = !state.demo;
+  if (state.demo) demoMapCache = null;
   localStorage.setItem('ld_demo', state.demo ? '1' : '0');
-  if (activation) localStorage.setItem('ld_demo_factor', String(state.demoFactor));
   renderMain();
 }
 function lettreDemo(i) {
   let n = i + 1, s = '';
   while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
   return s;
-}
-// Échelle pure (facteur ≥ 20 % d'écart avec 1, cf. genererParametresDemo) : préserve la
-// cohérence des totaux affichés (cases, détail, historique) puisque fauxMontant(a) + fauxMontant(b)
-// reste ≈ fauxMontant(a+b) — contrairement à un décalage additif constant, qui la casserait.
-function fauxMontant(cents) {
-  if (!cents) return 0;
-  return Math.max(100, Math.round((cents * state.demoFactor) / 100) * 100);
 }
 function anonymiserBeneficiaire(b, map) {
   if (!b) return b;
@@ -90,26 +73,21 @@ async function getDemoMap() {
   }
   return demoMapCache;
 }
+// Seule l'identité du bénéficiaire est transformée ici : les montants (est/dons/rappel/ex)
+// restent réels dans les données — leur affichage est masqué au rendu via fmtDemo(), pas ici.
+// Ça évite tout risque d'incohérence arithmétique (somme des parties ≠ somme affichée).
 async function vueDemo({ est, dons, benefs, rappel, tousLesDons, ex }) {
   if (!state.demo) return { est, dons, benefs, rappel, tousLesDons, ex };
   const map = await getDemoMap();
   const anonBenef = (b) => anonymiserBeneficiaire(b, map);
-  const anonDon = (d) => ({ ...d, montant: fauxMontant(d.montant), beneficiaire: anonBenef(d.beneficiaire) });
+  const anonDon = (d) => ({ ...d, beneficiaire: anonBenef(d.beneficiaire) });
   return {
-    est: {
-      ...est,
-      totalDonne: fauxMontant(est.totalDonne),
-      reductionTotale: fauxMontant(est.reductionTotale),
-      detail: est.detail.map((x) => ({ ...x, base: fauxMontant(x.base), reduction: fauxMontant(x.reduction) })),
-      cases: Object.fromEntries(Object.entries(est.cases).map(([k, v]) => [k, fauxMontant(v)])),
-      plafond20: est.plafond20 != null ? fauxMontant(est.plafond20) : null,
-      baseEligible20: fauxMontant(est.baseEligible20),
-    },
+    est,
     dons: dons.map(anonDon),
     benefs: benefs.map(anonBenef),
-    rappel: rappel.map((l) => ({ ...l, montantN1: fauxMontant(l.montantN1), montantN: fauxMontant(l.montantN), beneficiaire: anonBenef(l.beneficiaire) })),
+    rappel: rappel.map((l) => ({ ...l, beneficiaire: anonBenef(l.beneficiaire) })),
     tousLesDons: tousLesDons.map(anonDon),
-    ex: ex ? { ...ex, revenuImposable: ex.revenuImposable != null ? fauxMontant(ex.revenuImposable) : null } : ex,
+    ex,
   };
 }
 
@@ -207,14 +185,14 @@ function blocPlafond20(est, ex) {
     const cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok';
     return `
       <p style="margin:.5rem 0 .2rem">
-        <strong>Plafond ${pctLabel} % du revenu</strong> (dons « intérêt général », base ${fmt(est.baseEligible20)} / plafond ${fmt(est.plafond20)}) — <span class="muted">${pct} %</span>
+        <strong>Plafond ${pctLabel} % du revenu</strong> (dons « intérêt général », base ${fmtDemo(est.baseEligible20)} / plafond ${fmtDemo(est.plafond20)}) — <span class="muted">${pct} %</span>
         ${state.demo ? '' : `<button type="button" class="btn-link" id="editrevenu" title="Modifier le revenu imposable">✏️</button>`}
       </p>
       <div class="progress"><div class="progress-bar ${cls}" style="width:${Math.min(pct, 100)}%"></div></div>
-      ${pct >= 100 ? `<p class="muted">Plafond dépassé de ${fmt(est.baseEligible20 - est.plafond20)} — reportable sur votre déclaration (${est.reportAnnees} ans), à suivre hors app.</p>` : ''}
+      ${pct >= 100 ? `<p class="muted">Plafond dépassé de ${fmtDemo(est.baseEligible20 - est.plafond20)} — reportable sur votre déclaration (${est.reportAnnees} ans), à suivre hors app.</p>` : ''}
       ${state.demo ? '' : `<div id="revenuEditWrap" class="hidden">${formulaire(ex.revenuImposable / 100)}</div>`}`;
   }
-  if (state.demo) return `<p class="muted">🕶️ Plafond ${pctLabel} % masqué en mode démo.</p>`;
+  if (state.demo) return '<p class="muted">🕶️ Saisie du revenu imposable désactivée en mode démo.</p>';
   return formulaire(null);
 }
 
@@ -236,7 +214,7 @@ async function tabDashboard() {
   const anneesNonRenouvelees = Object.keys(nonRenouveles).map(Number).sort((a, b) => b - a);
   const totalNonRenouveles = anneesNonRenouvelees.reduce((s, a) => s + nonRenouveles[a].length, 0);
   const casesHtml = Object.entries(est.cases).filter(([, v]) => v > 0)
-    .map(([k, v]) => `<span class="badge badge-${k.slice(1).toLowerCase()}">${k} : ${fmt(v)}</span>`).join(' ') || '<span class="muted">—</span>';
+    .map(([k, v]) => `<span class="badge badge-${k.slice(1).toLowerCase()}">${k} : ${fmtDemo(v)}</span>`).join(' ') || '<span class="muted">—</span>';
   c.innerHTML = `
     <div class="card">
       <h2 style="overflow:auto">Réduction d'impôt estimée ${state.year}
@@ -245,13 +223,13 @@ async function tabDashboard() {
           : `<a class="btn btn-sm btn-outline" style="float:right;font-family:'Segoe UI',system-ui,sans-serif" href="/api/exercices/${state.year}/pdf" target="_blank" rel="noopener">📄 PDF récapitulatif</a>`}
       </h2>
       <div class="grid">
-        <div class="stat"><div class="value">${fmt(est.reductionTotale)}</div><div class="label">Réduction estimée</div></div>
-        <div class="stat"><div class="value">${fmt(est.totalDonne)}</div><div class="label">Total donné</div></div>
+        <div class="stat"><div class="value">${fmtDemo(est.reductionTotale)}</div><div class="label">Réduction estimée</div></div>
+        <div class="stat"><div class="value">${fmtDemo(est.totalDonne)}</div><div class="label">Total donné</div></div>
       </div>
       <p style="margin:.75rem 0 .25rem"><strong>Cases 2042 RICI :</strong> ${casesHtml}</p>
       ${blocPlafond20(est, ex)}
       ${est.detail.length ? `<table><thead><tr><th>Régime</th><th>Taux</th><th>Base</th><th>Réduction</th><th>Case</th></tr></thead><tbody>
-        ${est.detail.map((d) => `<tr><td>${esc(d.libelle)}</td><td>${Math.round(d.taux * 100)} %</td><td>${fmt(d.base)}</td><td>${fmt(d.reduction)}</td><td>${d.case}</td></tr>`).join('')}
+        ${est.detail.map((d) => `<tr><td>${esc(d.libelle)}</td><td>${Math.round(d.taux * 100)} %</td><td>${fmtDemo(d.base)}</td><td>${fmtDemo(d.reduction)}</td><td>${d.case}</td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Aucun don saisi pour cet exercice.</p>'}
     </div>
 
@@ -302,8 +280,8 @@ async function tabDashboard() {
         ${dons.map((d) => `<tr>
           <td>${d.date}</td>
           <td>${esc(d.beneficiaire?.nom || '?')}${d.recurrentId ? ' 🔁' : ''}</td>
-          <td>${fmt(d.montant)}</td>
-          <td class="muted" title="Montant versé à ce bénéficiaire en ${state.year - 1}">${montantN1Par[d.beneficiaireId] ? fmt(montantN1Par[d.beneficiaireId]) : '—'}</td>
+          <td>${fmtDemo(d.montant)}</td>
+          <td class="muted" title="Montant versé à ce bénéficiaire en ${state.year - 1}">${montantN1Par[d.beneficiaireId] ? fmtDemo(montantN1Par[d.beneficiaireId]) : '—'}</td>
           <td>${caseBadge(d.beneficiaire?.categorie)}</td>
           <td>${d.numeroRecu ? esc(d.numeroRecu) : '<span class="muted">—</span>'}</td>
           <td>${d.justificatifs.length ? '📎 ' + d.justificatifs.length : '<span class="muted">—</span>'}</td>
@@ -319,7 +297,7 @@ async function tabDashboard() {
             ${nonRenouveles[an].map((l) => `<li>
               <span class="nonrenew-name">${esc(l.beneficiaire.nom)}</span>
               ${suiviBadge(l.beneficiaire.indicateurSuivi)}
-              <span class="muted nonrenew-amount">${fmt(l.montant)} en ${an}</span>
+              <span class="muted nonrenew-amount">${fmtDemo(l.montant)} en ${an}</span>
             </li>`).join('')}
           </ul>`).join('')}
       </div>` : ''}
@@ -327,7 +305,9 @@ async function tabDashboard() {
 
     <div class="card">
       <h2>Historique pluriannuel par bénéficiaire</h2>
-      ${graphiqueHistorique(tousLesDons)}
+      ${state.demo
+        ? '<p class="muted">🕶️ Graphique masqué en mode démo (les hauteurs de barres refléteraient les vrais montants, même texte masqué).</p>'
+        : graphiqueHistorique(tousLesDons)}
     </div>`;
 
   // handlers (formulaire + actions absents du DOM en mode démo — rien à câbler)
