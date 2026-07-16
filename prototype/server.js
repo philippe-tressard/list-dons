@@ -81,6 +81,14 @@ api.use(requireAuth);
 
 api.get('/categories', (req, res) => res.json(fiscal.CATEGORIES));
 
+// Barème résolu pour une année (avec héritage N ← N-1) — récap des règles par exercice.
+api.get('/baremes/:annee', (req, res) => {
+  const annee = parseInt(req.params.annee, 10);
+  const source = fiscal.anneeSourceBareme(annee);
+  const b = fiscal.baremePour(annee);
+  res.json({ annee, source, regimes: b.regimes, reportAnnees: b.report_annees });
+});
+
 // Exercices
 api.get('/exercices', (req, res) => res.json(store.get().exercices.sort((a, b) => b.annee - a.annee)));
 api.post('/exercices', (req, res) => {

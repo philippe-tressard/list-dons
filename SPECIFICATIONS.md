@@ -1,7 +1,7 @@
 # List-dons — Spécifications
 
 > Fichier central des spécifications. **Source de vérité unique**, mis à jour à chaque évolution.
-> Statut : `BROUILLON — compréhension initiale` · Dernière mise à jour : 2026-07-16
+> Statut : `BROUILLON — compréhension initiale` · Dernière mise à jour : 2026-07-17
 
 ---
 
@@ -34,6 +34,7 @@
 | 2026-07-16 | 2.3     | Claude | Retrait du stat « Report (5 ans) » du tableau de bord (excédent non actionnable — jamais persisté ni réappliqué sur un exercice suivant, cf. EF-043 clarifiée). Pièce jointe désormais ajoutable dès la saisie d'un don (plus seulement en édition). **Mode confidentialité/démo** (EF-064) : bascule dans le bandeau, anonymise bénéficiaires et montants à l'écran (PDF non concerné, actions désactivées tant qu'actif). **Pied de page** (EF-065) : copyright, licence MIT, lien mentions légales (nouvelle page publique `/mentions-legales`). |
 | 2026-07-16 | 2.4     | Claude | PDF récapitulatif : ajout d'un **détail agrégé par bénéficiaire** (nombre de dons, total) en fin de document (EF-045). **Jauge de plafond 20 %** sur le tableau de bord (EF-043) : base éligible / plafond en %, avec saisie rapide du revenu imposable directement en contexte si non renseigné — le mode démo anonymise aussi ces deux champs. Moteur fiscal (`lib/fiscal.js`) expose désormais `plafond20`/`baseEligible20` en plus de `reportable`. Confirmé (et vérifié) : plusieurs dons uniques pour un même bénéficiaire sur un même exercice sont déjà supportés nativement (aucune contrainte d'unicité côté API/stockage). |
 | 2026-07-17 | 2.5     | Claude | **Isolation du barème par année vérifiée** (règles d'intégrité) : nouvel auto-test `prototype/lib/fiscal.selftest.js` prouvant qu'un changement de barème sur une année N n'affecte jamais N-1/N-2… (ni l'inverse). **Correctif mode démo** : le plafond 20 % et le revenu imposable pouvaient rester identiques aux vraies valeurs (facteur d'échelle par coïncidence proche de 1 sur des montants ronds à l'euro) — `fauxMontant` applique désormais un décalage additif garanti (≥ 5 €) en plus de l'échelle, et l'initialisation régénère les paramètres démo s'ils sont absents au chargement. **IHM** : retrait de la mention « Prototype de test — implémentation cible en Rust » (bandeau et « À propos »), devenue hors de propos sur l'instance réellement utilisée ; le plan d'implémentation cible Rust reste inchangé dans ces specs. |
+| 2026-07-17 | 2.6     | Claude | **Récapitulatif des barèmes par exercice** (EF-046, nouveau) dans Paramètres — règles réellement appliquées à chaque exercice créé, avec année source en cas d'héritage ; nouvel endpoint `GET /api/baremes/{annee}` (déjà esquissé dans `api.md`), `fiscal.anneeSourceBareme()` exporté. **Revenu imposable dédupliqué** : ne se saisit/modifie plus que depuis le tableau de bord (jauge + icône ✏️) — retiré de Paramètres, qui n'en avait plus l'usage. **Taux de 20 % jamais affiché en dur** : `plafondPct20` dérivé du barème de l'année (`gGen.plafond.valeur`), pour rester juste si le taux légal change sur un exercice futur. **Terme « Revenu imposable » vérifié** sur Légifrance (art. 200 CGI, 1 : « … dans la limite de 20 % du revenu imposable ») — c'est le terme légal exact, entrée glossaire ajoutée. |
 
 ---
 

@@ -47,14 +47,19 @@ try {
 
   assert.strictEqual(r2026.reductionTotale, 6600, '2026 doit rester au taux réel 66 % malgré le barème fictif 2099');
   assert.strictEqual(r2026.plafond20, 100000, '2026 doit garder le plafond réel 20 % (1000 € pour 5000 € de revenu)');
+  assert.strictEqual(r2026.plafondPct20, 20, '2026 doit afficher le taux réel 20 % (jamais codé en dur dans l\'IHM)');
   assert.strictEqual(r2099.reductionTotale, 5000, '2099 doit utiliser le barème fictif 50 % (isolation confirmée)');
   assert.strictEqual(r2099.plafond20, 50000, '2099 doit utiliser le plafond fictif 10 % (500 € pour 5000 € de revenu)');
+  assert.strictEqual(r2099.plafondPct20, 10, '2099 doit afficher le taux fictif 10 % (dérivé du barème, pas codé en dur)');
   assert.strictEqual(r2100.reductionTotale, 5000, '2100 doit hériter du barème 2099 (héritage vers l\'avant uniquement)');
+  assert.strictEqual(fiscal.anneeSourceBareme(2026), 2025, '2026 doit être résolu depuis la source 2025');
+  assert.strictEqual(fiscal.anneeSourceBareme(2099), 2099, '2099 doit être résolu depuis sa propre source 2099');
   ok('Isolation par année (2026 intact, 2099 isolé, 2100 hérite de 2099)');
 } finally {
   delete fiscal.BAREMES[2099]; // nettoyage systématique, même en cas d'échec d'assertion
 }
 assert.strictEqual(fiscal.baremePour(2026), bareme2025, 'Après nettoyage, 2026 doit revenir à hériter de 2025');
+assert.strictEqual(fiscal.anneeSourceBareme(2026), 2025, 'Après nettoyage, la source de 2026 doit redevenir 2025');
 ok('Nettoyage effectif (aucune trace du barème fictif après le test)');
 
 console.log('\nTous les auto-tests du moteur fiscal passent.');

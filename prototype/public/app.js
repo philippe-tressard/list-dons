@@ -193,23 +193,31 @@ async function renderMain() {
   else await tabParams();
 }
 
-// Plafond 20 % du revenu imposable (dons « intérêt général ») : jauge si le revenu est renseigné,
-// sinon une saisie rapide contextuelle (plutôt que d'obliger un détour par Paramètres).
+// Plafond du revenu imposable (dons « intérêt général ») : jauge si le revenu est renseigné,
+// sinon une saisie rapide contextuelle (seul endroit de l'app où le renseigner — inutile de le
+// dupliquer dans Paramètres). Taux affiché dynamiquement (est.plafondPct20) : jamais « 20 % » en
+// dur, pour rester correct si le taux légal venait à changer sur une année future.
 function blocPlafond20(est, ex) {
+  const pctLabel = est.plafondPct20 != null ? est.plafondPct20 : 20;
+  const formulaire = (valeurEuros) => `
+    <div class="row" style="align-items:flex-end;margin:.5rem 0">
+      <div><label>Revenu imposable du foyer (€) <span class="muted">— pour anticiper le plafond de ${pctLabel} %</span></label><input id="revenuInline" type="number" step="1" min="0" value="${valeurEuros ?? ''}" placeholder="facultatif" /></div>
+      <div style="flex:0"><button class="btn btn-sm btn-primary" type="button" id="saverevInline">Enregistrer</button></div>
+    </div>`;
   if (ex && ex.revenuImposable) {
     const pct = Math.min(999, Math.round((est.baseEligible20 / (est.plafond20 || 1)) * 100));
     const cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok';
     return `
-      <p style="margin:.5rem 0 .2rem"><strong>Plafond 20 % du revenu</strong> (dons « intérêt général », base ${fmt(est.baseEligible20)} / plafond ${fmt(est.plafond20)}) — <span class="muted">${pct} %</span></p>
+      <p style="margin:.5rem 0 .2rem">
+        <strong>Plafond ${pctLabel} % du revenu</strong> (dons « intérêt général », base ${fmt(est.baseEligible20)} / plafond ${fmt(est.plafond20)}) — <span class="muted">${pct} %</span>
+        ${state.demo ? '' : `<button type="button" class="btn-link" id="editrevenu" title="Modifier le revenu imposable">✏️</button>`}
+      </p>
       <div class="progress"><div class="progress-bar ${cls}" style="width:${Math.min(pct, 100)}%"></div></div>
-      ${pct >= 100 ? `<p class="muted">Plafond dépassé de ${fmt(est.baseEligible20 - est.plafond20)} — reportable sur votre déclaration (5 ans), à suivre hors app.</p>` : ''}`;
+      ${pct >= 100 ? `<p class="muted">Plafond dépassé de ${fmt(est.baseEligible20 - est.plafond20)} — reportable sur votre déclaration (${est.reportAnnees} ans), à suivre hors app.</p>` : ''}
+      ${state.demo ? '' : `<div id="revenuEditWrap" class="hidden">${formulaire(ex.revenuImposable / 100)}</div>`}`;
   }
-  if (state.demo) return '<p class="muted">🕶️ Plafond 20 % masqué en mode démo.</p>';
-  return `
-    <div class="row" style="align-items:flex-end;margin:.5rem 0">
-      <div><label>Revenu imposable du foyer (€) <span class="muted">— pour anticiper le plafond de 20 %</span></label><input id="revenuInline" type="number" step="1" min="0" placeholder="facultatif" /></div>
-      <div style="flex:0"><button class="btn btn-sm btn-primary" type="button" id="saverevInline">Enregistrer</button></div>
-    </div>`;
+  if (state.demo) return `<p class="muted">🕶️ Plafond ${pctLabel} % masqué en mode démo.</p>`;
+  return formulaire(null);
 }
 
 // ---------- Dashboard ----------
@@ -331,6 +339,8 @@ async function tabDashboard() {
       try { await api('PATCH', '/exercices/' + state.year, { revenuImposable: $('#revenuInline').value }); tabDashboard(); }
       catch (err) { alert(err.message); }
     };
+    const btnEditRev = $('#editrevenu');
+    if (btnEditRev) btnEditRev.onclick = () => $('#revenuEditWrap').classList.toggle('hidden');
     $('#benefsel').onchange = (e) => $('#newbenef').classList.toggle('hidden', e.target.value !== '__new');
     $('#freq').onchange = (e) => $('#pjwrap').classList.toggle('hidden', e.target.value !== 'unique');
     $('#donform').onsubmit = async (e) => {
@@ -612,20 +622,32 @@ function editBenef(b) {
 // ---------- Paramètres ----------
 async function tabParams() {
   const c = $('#content');
-  const ex = (await api('GET', '/exercices')).find((e) => e.annee === state.year);
+  const exercices = await api('GET', '/exercices');
+  const annees = [...new Set([...(exercices.length ? exercices.map((e) => e.annee) : []), state.year])].sort((a, b) => a - b);
+  const baremes = await Promise.all(annees.map((an) => api('GET', '/baremes/' + an)));
+
+  const rows = baremes.map((b) => {
+    const g = b.regimes.ir_general, co = b.regimes.ir_coluche, pa = b.regimes.ir_partis;
+    const src = b.source !== b.annee ? `<span class="muted">(hérite de ${b.source})</span>` : '<span class="muted">(propre)</span>';
+    return `<tr>
+      <td>${b.annee} ${src}</td>
+      <td>${Math.round(g.taux * 100)} % · plafond ${Math.round(g.plafond.valeur * 100)} % du revenu</td>
+      <td>${Math.round(co.taux * 100)} % · plafond ${fmt(co.plafond.valeur)}</td>
+      <td>${Math.round(pa.taux * 100)} % · plafond ${fmt(pa.plafond.valeur)}</td>
+    </tr>`;
+  }).join('');
+
   c.innerHTML = `
     <div class="card">
-      <h2>Exercice ${state.year}</h2>
-      <label>Revenu imposable du foyer (€) — sert au plafond de 20 %</label>
-      <div class="row"><div><input id="revenu" type="number" step="1" min="0" value="${ex && ex.revenuImposable != null ? (ex.revenuImposable / 100) : ''}" placeholder="facultatif" /></div>
-      <div style="flex:0"><button class="btn btn-primary" id="saverev">Enregistrer</button></div></div>
-      <p class="muted">Sans revenu renseigné, le plafond de 20 % n'est pas appliqué (l'estimation reste correcte pour de petits montants).</p>
+      <h2>Barèmes fiscaux par exercice</h2>
+      <p class="muted">Règles réellement appliquées à chacun de vos exercices. Une année sans barème propre hérite automatiquement du plus récent barème antérieur — jamais l'inverse : un changement de règle ne peut pas s'appliquer rétroactivement à un exercice déjà clos.</p>
+      <table><thead><tr><th>Exercice</th><th>Intérêt général</th><th>Coluche</th><th>Partis politiques</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="muted">Excédent de dons « intérêt général » au-delà du plafond du revenu imposable : reportable sur ${baremes[0]?.reportAnnees ?? 5} ans sur votre déclaration officielle (non suivi automatiquement dans l'app — voir le tableau de bord de l'exercice concerné).</p>
     </div>
     <div class="card">
       <h2>À propos</h2>
-      <p class="muted">List-dons. Moteur fiscal art. 200 CGI, barèmes 2025–2027. Données stockées localement.</p>
+      <p class="muted">List-dons. Moteur fiscal art. 200 CGI. Données stockées localement.</p>
     </div>`;
-  $('#saverev').onclick = async () => { await api('PATCH', '/exercices/' + state.year, { revenuImposable: $('#revenu').value }); alert('Enregistré.'); tabParams(); };
 }
 
 render().catch((e) => { if (e.message !== 'auth') app.innerHTML = '<p style="padding:2rem">Erreur : ' + esc(e.message) + '</p>'; });

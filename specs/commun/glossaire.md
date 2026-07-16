@@ -9,7 +9,8 @@
 | **Régime fiscal** | Règle taux + plafond (+ case de déclaration) appliquée à un don selon la catégorie du bénéficiaire (ex. `ir_general`, `ir_coluche`, `ir_partis`). |
 | **Barème** | Ensemble daté des régimes d'une année. Versionné par millésime ; **héritage N ← N-1** si pas de règle spécifique. |
 | **Réduction d'impôt** | Montant soustrait de l'impôt dû (ex. 66 % ou 75 % du don). À distinguer d'une **déduction du revenu** (ex. PER, art. 163 quatervicies). |
-| **Plafond des 20 %** | Limite de l'assiette du régime général : 20 % du **revenu imposable**. Excédent **reportable 5 ans**. |
+| **Revenu imposable** | Terme légal exact (art. 200 CGI, 1 : « … dans la limite de 20 % du revenu imposable » — vérifié sur Légifrance). Base du calcul du plafond des dons « intérêt général ». |
+| **Plafond des 20 %** | Limite de l'assiette du régime général : 20 % du **revenu imposable** *(taux actuel — porté par le barème daté, pas une constante ; susceptible d'évoluer par millésime)*. Excédent **reportable 5 ans**. |
 | **Report** | Excédent au-delà du plafond, imputable sur les 5 années suivantes. |
 | **2042 RICI** | Formulaire des réductions et crédits d'impôt. Cases dons : **7UD** (75 % Coluche), **7UF** (66 % intérêt général), **7UH** (partis politiques). |
 | **Art. 200 CGI** | Base de la réduction d'impôt pour dons des particuliers. |

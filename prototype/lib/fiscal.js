@@ -24,12 +24,17 @@ const CATEGORIES = [
   { code: 'ir_partis',  libelle: 'Parti politique (66 %)' },
 ];
 
-/** Résout le barème applicable à une année (héritage N <- N-1). */
-function baremePour(annee) {
+/** Année du barème réellement appliquée pour `annee` (héritage N <- N-1 : la plus récente <= annee). */
+function anneeSourceBareme(annee) {
   const annees = Object.keys(BAREMES).map(Number).sort((a, b) => a - b);
   let choisi = annees[0];
   for (const a of annees) if (a <= annee) choisi = a;
-  return BAREMES[choisi];
+  return choisi;
+}
+
+/** Résout le barème applicable à une année (héritage N <- N-1). */
+function baremePour(annee) {
+  return BAREMES[anneeSourceBareme(annee)];
 }
 
 const euros = (cents) => (cents / 100);
@@ -106,8 +111,11 @@ function estimer(dons, revenuImposable, annee) {
     reportAnnees: bareme.report_annees,
     detail,
     cases,
-    // Plafond 20 % du revenu imposable (dons "intérêt général") : null si revenu non renseigné.
+    // Plafond du revenu imposable (dons "intérêt général") : montant null si revenu non
+    // renseigné, mais le taux (plafondPct20) est toujours connu — jamais codé en dur dans l'IHM,
+    // pour rester correct si le taux légal (20 % aujourd'hui) venait à changer sur une année future.
     plafond20,
+    plafondPct20: Math.round(gGen.plafond.valeur * 100),
     baseEligible20: baseGeneral,
     // versions € pour l'affichage
     _euros: {
@@ -121,4 +129,4 @@ function estimer(dons, revenuImposable, annee) {
 
 // BAREMES exporté (référence, pas une copie) pour permettre à fiscal.selftest.js de vérifier
 // l'isolation par année sans dupliquer la logique de résolution ni toucher aux vraies données.
-module.exports = { estimer, baremePour, CATEGORIES, euros, BAREMES };
+module.exports = { estimer, baremePour, anneeSourceBareme, CATEGORIES, euros, BAREMES };
