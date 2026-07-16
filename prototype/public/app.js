@@ -111,7 +111,9 @@ async function tabDashboard() {
     api('GET', '/dons'),
   ]);
   const montantN1Par = {}; rappel.forEach((l) => { montantN1Par[l.beneficiaire.id] = l.montantN1; });
-  const nonRenouveles = rappel.filter((l) => l.statut === 'non_renouvele').sort((a, b) => b.montantN1 - a.montantN1);
+  const nonRenouveles = groupesNonRenouveles(tousLesDons, state.year);
+  const anneesNonRenouvelees = Object.keys(nonRenouveles).map(Number).sort((a, b) => b - a);
+  const totalNonRenouveles = anneesNonRenouvelees.reduce((s, a) => s + nonRenouveles[a].length, 0);
   const casesHtml = Object.entries(est.cases).filter(([, v]) => v > 0)
     .map(([k, v]) => `<span class="badge badge-${k.slice(1).toLowerCase()}">${k} : ${fmt(v)}</span>`).join(' ') || '<span class="muted">—</span>';
   c.innerHTML = `
@@ -181,16 +183,18 @@ async function tabDashboard() {
           <td style="white-space:nowrap"><button class="btn-link" data-edit="${d.id}">✏️</button> <button class="btn-danger" data-del="${d.id}">🗑️</button></td>
         </tr>`).join('')}
       </tbody></table>` : '<p class="muted">Aucun don.</p>'}
-      ${nonRenouveles.length ? `
+      ${totalNonRenouveles ? `
       <div class="nonrenew">
-        <h3>↩️ Non renouvelés depuis ${state.year - 1} <span class="muted">(${nonRenouveles.length})</span></h3>
-        <ul class="nonrenew-list">
-          ${nonRenouveles.map((l) => `<li>
-            <span class="nonrenew-name">${esc(l.beneficiaire.nom)}</span>
-            ${suiviBadge(l.beneficiaire.indicateurSuivi)}
-            <span class="muted nonrenew-amount">${fmt(l.montantN1)} en ${state.year - 1}</span>
-          </li>`).join('')}
-        </ul>
+        <h3>↩️ Non renouvelée <span class="muted">(${totalNonRenouveles})</span></h3>
+        ${anneesNonRenouvelees.map((an) => `
+          <h4>${an} <span class="muted">(${nonRenouveles[an].length})</span></h4>
+          <ul class="nonrenew-list">
+            ${nonRenouveles[an].map((l) => `<li>
+              <span class="nonrenew-name">${esc(l.beneficiaire.nom)}</span>
+              ${suiviBadge(l.beneficiaire.indicateurSuivi)}
+              <span class="muted nonrenew-amount">${fmt(l.montant)} en ${an}</span>
+            </li>`).join('')}
+          </ul>`).join('')}
       </div>` : ''}
     </div>
 
@@ -281,6 +285,25 @@ function editDon(don, benefs) {
       closeModal(); tabDashboard();
     } catch (err) { m.querySelector('#edonerr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
   };
+}
+// Bénéficiaires n'ayant pas (encore) donné en anneeCourante mais ayant donné avant,
+// groupés par leur dernière année de don (clé = année).
+function groupesNonRenouveles(tousLesDons, anneeCourante) {
+  const anneesParBenef = {};
+  tousLesDons.forEach((d) => { (anneesParBenef[d.beneficiaireId] ??= new Set()).add(d.annee); });
+  const groupes = {};
+  Object.keys(anneesParBenef).forEach((id) => {
+    if (anneesParBenef[id].has(anneeCourante)) return;
+    const passees = [...anneesParBenef[id]].filter((a) => a < anneeCourante);
+    if (!passees.length) return;
+    const derniere = Math.max(...passees);
+    const beneficiaire = tousLesDons.find((d) => d.beneficiaireId === id)?.beneficiaire;
+    if (!beneficiaire) return;
+    const montant = tousLesDons.filter((d) => d.beneficiaireId === id && d.annee === derniere).reduce((s, d) => s + d.montant, 0);
+    (groupes[derniere] ??= []).push({ beneficiaire, montant });
+  });
+  Object.values(groupes).forEach((liste) => liste.sort((a, b) => b.montant - a.montant));
+  return groupes;
 }
 // Historique pluriannuel : barres empilées par bénéficiaire (SVG fait main, sans dépendance).
 function couleurBenef(index) { return `hsl(${(index * 137.5) % 360}, 55%, 48%)`; }
