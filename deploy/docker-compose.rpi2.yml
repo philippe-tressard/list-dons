@@ -1,0 +1,40 @@
+# Déploiement List-dons sur le RPi2 — ISOLÉ de 5Hostachy.
+# Projet Compose dédié "listdons" → conteneurs / réseau / volumes préfixés.
+# Ports : uniquement le port LAN de List-dons. JAMAIS 80/443 (réservés à 5Hostachy).
+name: listdons
+
+services:
+  app:
+    build:
+      context: ../prototype
+    image: listdons-app:latest
+    container_name: listdons_app
+    restart: unless-stopped
+    environment:
+      - PORT=8080
+      - TZ=Europe/Paris
+    ports:
+      # hôte:conteneur — l'hôte n'expose que le port LAN choisi (défaut 8080)
+      - "${LISTDONS_PORT:-8080}:8080"
+    volumes:
+      - listdons_data:/app/data      # base JSON + uploads du prototype (isolé)
+    networks:
+      - listdons_net
+    logging:
+      driver: "json-file"
+      options: { max-size: "5m", max-file: "3" }
+    # Plafonds de ressources : garantir la priorité à 5Hostachy en toute circonstance.
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+
+volumes:
+  listdons_data:
+    name: listdons_data
+
+networks:
+  listdons_net:
+    name: listdons_net
+    driver: bridge
