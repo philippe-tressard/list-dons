@@ -3,26 +3,27 @@
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const app = $('#app');
+// Facteur d'échelle PUR (pas de décalage additif) : un décalage constant casserait la
+// linéarité des totaux (somme des cases ≠ total donné, somme du détail ≠ réduction totale…).
+// L'écart minimum de 20 % avec 1 suffit à écarter toute coïncidence avec la vraie valeur pour
+// des montants réalistes (dons, revenu), tout en gardant fauxMontant(a)+fauxMontant(b) ≈
+// fauxMontant(a+b) — cohérent à l'écran.
 function genererParametresDemo() {
-  return {
-    demoFactor: 0.6 + Math.random() * 1.2,
-    // Décalage minimum garanti (5 à 30 €) : évite qu'un facteur proche de 1 laisse par
-    // coïncidence un montant rond (revenu, don) identique à la vraie valeur.
-    demoOffset: (Math.random() < 0.5 ? -1 : 1) * (500 + Math.round(Math.random() * 2500)),
-  };
+  const signe = Math.random() < 0.5 ? -1 : 1;
+  const ecart = 0.2 + Math.random() * 0.4; // entre 20 % et 60 % d'écart avec 1, jamais moins
+  return { demoFactor: 1 + signe * ecart };
 }
 let state = {
   year: new Date().getFullYear(), tab: 'dashboard', cats: [],
   demo: localStorage.getItem('ld_demo') === '1',
   demoFactor: parseFloat(localStorage.getItem('ld_demo_factor')) || 0,
-  demoOffset: parseFloat(localStorage.getItem('ld_demo_offset')) || 0,
 };
-// Démo active dès le chargement (session précédente) mais paramètres absents/invalides : régénère.
-if (state.demo && !state.demoFactor) {
+// Démo active dès le chargement (session précédente) mais facteur absent/invalide : régénère.
+if (state.demo && (!state.demoFactor || Math.abs(state.demoFactor - 1) < 0.2)) {
   Object.assign(state, genererParametresDemo());
   localStorage.setItem('ld_demo_factor', String(state.demoFactor));
-  localStorage.setItem('ld_demo_offset', String(state.demoOffset));
 }
+localStorage.removeItem('ld_demo_offset'); // nettoyage de l'ancien mécanisme (décalage abandonné)
 
 async function api(method, path, body, isForm) {
   const opt = { method, headers: {} };
@@ -58,10 +59,7 @@ function toggleDemo() {
   state.demo = activation;
   if (activation) { Object.assign(state, genererParametresDemo()); demoMapCache = null; }
   localStorage.setItem('ld_demo', state.demo ? '1' : '0');
-  if (activation) {
-    localStorage.setItem('ld_demo_factor', String(state.demoFactor));
-    localStorage.setItem('ld_demo_offset', String(state.demoOffset));
-  }
+  if (activation) localStorage.setItem('ld_demo_factor', String(state.demoFactor));
   renderMain();
 }
 function lettreDemo(i) {
@@ -69,12 +67,12 @@ function lettreDemo(i) {
   while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
   return s;
 }
-// Échelle + décalage garantissent que le montant affiché diffère toujours du réel,
-// même pour des sommes rondes à l'euro (revenu imposable, dons) et un facteur proche de 1.
+// Échelle pure (facteur ≥ 20 % d'écart avec 1, cf. genererParametresDemo) : préserve la
+// cohérence des totaux affichés (cases, détail, historique) puisque fauxMontant(a) + fauxMontant(b)
+// reste ≈ fauxMontant(a+b) — contrairement à un décalage additif constant, qui la casserait.
 function fauxMontant(cents) {
   if (!cents) return 0;
-  const v = Math.round((cents * state.demoFactor + state.demoOffset) / 100) * 100;
-  return Math.max(100, v);
+  return Math.max(100, Math.round((cents * state.demoFactor) / 100) * 100);
 }
 function anonymiserBeneficiaire(b, map) {
   if (!b) return b;
