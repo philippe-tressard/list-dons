@@ -1,0 +1,19 @@
+{
+  "name": "list-dons-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prototype fonctionnel (Node) de List-dons — pour tester l'UX et le moteur fiscal. Implémentation cible : Rust (voir specs).",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}
