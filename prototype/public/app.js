@@ -103,11 +103,14 @@ async function renderMain() {
 // ---------- Dashboard ----------
 async function tabDashboard() {
   const c = $('#content');
-  const [est, dons, benefs] = await Promise.all([
+  const [est, dons, benefs, rappel] = await Promise.all([
     api('GET', '/estimation?annee=' + state.year),
     api('GET', '/dons?annee=' + state.year),
     api('GET', '/beneficiaires'),
+    api('GET', '/rappel-n1?annee=' + state.year),
   ]);
+  const montantN1Par = {}; rappel.forEach((l) => { montantN1Par[l.beneficiaire.id] = l.montantN1; });
+  const nonRenouveles = rappel.filter((l) => l.statut === 'non_renouvele').sort((a, b) => b.montantN1 - a.montantN1);
   const casesHtml = Object.entries(est.cases).filter(([, v]) => v > 0)
     .map(([k, v]) => `<span class="badge badge-${k.slice(1).toLowerCase()}">${k} : ${fmt(v)}</span>`).join(' ') || '<span class="muted">—</span>';
   c.innerHTML = `
@@ -165,17 +168,29 @@ async function tabDashboard() {
 
     <div class="card">
       <h2>Dons ${state.year} <span class="muted">(${dons.length})</span></h2>
-      ${dons.length ? `<table><thead><tr><th>Date</th><th>Bénéficiaire</th><th>Montant</th><th>Case</th><th>N° reçu</th><th>PJ</th><th></th></tr></thead><tbody>
+      ${dons.length ? `<table><thead><tr><th>Date</th><th>Bénéficiaire</th><th>Montant</th><th>N-1</th><th>Case</th><th>N° reçu</th><th>PJ</th><th></th></tr></thead><tbody>
         ${dons.map((d) => `<tr>
           <td>${d.date}</td>
           <td>${esc(d.beneficiaire?.nom || '?')}${d.recurrentId ? ' 🔁' : ''}</td>
           <td>${fmt(d.montant)}</td>
+          <td class="muted" title="Montant versé à ce bénéficiaire en ${state.year - 1}">${montantN1Par[d.beneficiaireId] ? fmt(montantN1Par[d.beneficiaireId]) : '—'}</td>
           <td>${caseBadge(d.beneficiaire?.categorie)}</td>
           <td>${d.numeroRecu ? esc(d.numeroRecu) : '<span class="muted">—</span>'}</td>
           <td>${d.justificatifs.length ? '📎 ' + d.justificatifs.length : '<span class="muted">—</span>'}</td>
           <td style="white-space:nowrap"><button class="btn-link" data-edit="${d.id}">✏️</button> <button class="btn-danger" data-del="${d.id}">🗑️</button></td>
         </tr>`).join('')}
       </tbody></table>` : '<p class="muted">Aucun don.</p>'}
+      ${nonRenouveles.length ? `
+      <div class="nonrenew">
+        <h3>↩️ Non renouvelés depuis ${state.year - 1} <span class="muted">(${nonRenouveles.length})</span></h3>
+        <ul class="nonrenew-list">
+          ${nonRenouveles.map((l) => `<li>
+            <span class="nonrenew-name">${esc(l.beneficiaire.nom)}</span>
+            ${suiviBadge(l.beneficiaire.indicateurSuivi)}
+            <span class="muted nonrenew-amount">${fmt(l.montantN1)} en ${state.year - 1}</span>
+          </li>`).join('')}
+        </ul>
+      </div>` : ''}
     </div>`;
 
   // handlers
@@ -264,6 +279,16 @@ function editDon(don, benefs) {
 function caseBadge(cat) {
   const map = { ir_general: ['7UF', 'uf'], ir_coluche: ['7UD', 'ud'], ir_partis: ['7UH', 'uh'] };
   const m = map[cat] || map.ir_general; return `<span class="badge badge-${m[1]}">${m[0]}</span>`;
+}
+// Notation affective du bénéficiaire (indicateurSuivi), rendue en badge plutôt qu'en texte brut.
+const SUIVI = {
+  neutre: { icon: '🤍', label: 'Neutre', cls: 'suivi-neutre' },
+  surveiller: { icon: '🧡', label: 'À surveiller', cls: 'suivi-surveiller' },
+  eviter: { icon: '💔', label: 'À éviter', cls: 'suivi-eviter' },
+};
+function suiviBadge(code) {
+  const s = SUIVI[code] || SUIVI.neutre;
+  return `<span class="pill suivi-badge ${s.cls}">${s.icon} ${s.label}</span>`;
 }
 
 // ---------- Bénéficiaires ----------
