@@ -46,6 +46,25 @@ docker compose -f docker-compose.rpi2.yml down      # arrêter / désinstaller (
 
 Les données (base + uploads) sont dans le volume `listdons_data`, indépendant de 5Hostachy.
 
+## Sauvegarde (isolée)
+
+`backup-listdons.sh` sauvegarde le volume `listdons_data` (base + reçus) vers `~/list-dons/backups`, en `.tar.gz` horodaté, avec rotation (14 dernières). Tourne en `ptressard`, ne touche que les ressources `listdons_*`.
+
+Cron quotidien (04:15, hors des créneaux 5Hostachy) :
+```bash
+15 4 * * * /home/ptressard/list-dons/deploy/backup-listdons.sh >> /home/ptressard/list-dons/backups/backup.log 2>&1
+```
+Lancer à la demande : `bash ~/list-dons/deploy/backup-listdons.sh`
+
+**Restaurer** une sauvegarde :
+```bash
+cd ~/list-dons/deploy
+docker compose -f docker-compose.rpi2.yml stop
+docker run --rm -v listdons_data:/data -v ~/list-dons/backups:/backup listdons-app:latest \
+  sh -c "cd /data && rm -rf ./* ./.[!.]* 2>/dev/null; tar xzf /backup/<FICHIER>.tar.gz"
+docker compose -f docker-compose.rpi2.yml start
+```
+
 ## Ce que le script NE fait jamais
 - prendre les ports 80/443 ;
 - créer/modifier/supprimer/redémarrer un conteneur, réseau ou volume `hostachy_*` ;
