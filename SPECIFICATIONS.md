@@ -30,6 +30,7 @@
 | 2026-07-16 | 1.9     | Claude | **Dons uniques vs récurrents** (§5.4 + entité `DonRecurrent`) : fréquences unique/mensuel/trimestriel/annuel ; l'engagement **génère un `Don` par échéance** rattaché à **son année d'imposition** (réutilise le moteur, zéro cas spécial) ; `Don` = source de vérité éditable ; **arrêt** de la récurrence + rappel de résilier le prélèvement réel ; reçu annuel récapitulatif. |
 | 2026-07-16 | 2.0     | Claude | **Anonymisation pour publication** : exemple §6.7 rendu fictif (bénéficiaires génériques, revenu illustratif), identifiants (SIREN, n° de reçu) et IP LAN retirés ; journal nettoyé. Ajout des fichiers d'amorçage du dépôt (README, LICENSE MIT, .gitignore). |
 | 2026-07-16 | 2.1     | Claude | **IHM (prototype)** : édition d'un don et d'un bénéficiaire déjà saisis ; **coordonnées du bénéficiaire** (adresse, téléphone, URL, email — tous optionnels) ; rappel N-1 branché au tableau de bord (colonne montant N-1, liste des non-renouvelés) ; **indicateur de suivi** enrichi d'un 4ᵉ état **« de confiance »** ; **EF-052 promu MVP** : historique pluriannuel en barres empilées par bénéficiaire. |
+| 2026-07-16 | 2.2     | Claude | Liste « Non renouvelée » étendue à tout l'historique (plus seulement N-1), groupée par dernière année de don, tri décroissant. **Récapitulatif fiscal annuel en PDF** (EF-045, promu MVP) : estimation, cases 2042 RICI, détail chronologique des dons ; `GET /api/exercices/{annee}/pdf`. |
 
 ---
 
@@ -335,6 +336,7 @@ Réservé aux **entreprises**. L'application cible un **particulier** → **non 
 - [ ] **Dons récurrents** (§5.4) : engagement (fréquence unique/mensuel/trimestriel/annuel), **génération des versements par échéance** rattachés à leur année, **arrêt** de la récurrence, reçu annuel.
 - [ ] **Ouverture d'un nouvel exercice** : **rappel des bénéficiaires N-1** + report rapide d'un don + **comparatif N vs N-1** (§5.1).
 - [ ] **Historique pluriannuel** (tableau de bord) : graphique en barres empilées par bénéficiaire, une barre par exercice saisi.
+- [ ] **Récapitulatif fiscal annuel en PDF** : estimation + cases 2042 RICI + détail chronologique des dons ; aide à la déclaration, ne s'y substitue pas.
 - [ ] Synthèse **par bénéficiaire** + **par catégorie**.
 - [ ] **Estimation de la réduction d'impôt** + détail du calcul.
 - [ ] Rappel des **cases de déclaration**.
@@ -350,7 +352,6 @@ Réservé aux **entreprises**. L'application cible un **particulier** → **non 
 - **Détection « pas un don »** : reconnaître les attestations hors périmètre (PER art. 163 quatervicies / cases 6NS-6NT, etc.) et refuser de les enregistrer comme dons.
 - Import de relevés bancaires (CSV) avec rapprochement.
 - Référentiel de **bénéficiaires pré-rempli** (habilitation, catégorie par défaut).
-- **Récapitulatif annuel PDF** (justificatif personnel).
 - Rappel des **reçus manquants** avant déclaration + **calendrier fiscal**.
 - Multi-foyers / profils, MFA.
 - Extension **mécénat entreprise** (art. 238 bis) en module séparé.

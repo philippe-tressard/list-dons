@@ -118,7 +118,9 @@ async function tabDashboard() {
     .map(([k, v]) => `<span class="badge badge-${k.slice(1).toLowerCase()}">${k} : ${fmt(v)}</span>`).join(' ') || '<span class="muted">—</span>';
   c.innerHTML = `
     <div class="card">
-      <h2>Réduction d'impôt estimée ${state.year}</h2>
+      <h2 style="overflow:auto">Réduction d'impôt estimée ${state.year}
+        <a class="btn btn-sm btn-outline" style="float:right;font-family:'Segoe UI',system-ui,sans-serif" href="/api/exercices/${state.year}/pdf" target="_blank" rel="noopener">📄 PDF récapitulatif</a>
+      </h2>
       <div class="grid">
         <div class="stat"><div class="value">${fmt(est.reductionTotale)}</div><div class="label">Réduction estimée</div></div>
         <div class="stat"><div class="value">${fmt(est.totalDonne)}</div><div class="label">Total donné</div></div>

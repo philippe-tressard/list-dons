@@ -38,6 +38,7 @@ Identifiants `EF-xxx`. Priorité : **M** (MVP) / **B** (backlog).
 - **EF-042 (M)** — Détail **par bénéficiaire** et **par catégorie**.
 - **EF-043 (M)** — Gestion du **plafond 20 %** et du **report sur 5 ans**.
 - **EF-044 (B)** — Simulateur « et si je donne X € de plus ? ».
+- **EF-045 (M)** — **Récapitulatif fiscal annuel en PDF** : résumé de l'estimation, cases 2042 RICI à reporter, détail chronologique des dons (date, bénéficiaire, case, montant, n° de reçu). Aide à remplir la déclaration ; ne s'y substitue pas.
 
 ## Comparatif / rappel
 - **EF-050 (M)** — **Rappel des bénéficiaires N-1** + report rapide à l'ouverture d'un exercice.
