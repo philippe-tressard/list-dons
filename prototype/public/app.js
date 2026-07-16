@@ -181,16 +181,20 @@ function blocPlafond20(est, ex) {
       <div style="flex:0"><button class="btn btn-sm btn-primary" type="button" id="saverevInline">Enregistrer</button></div>
     </div>`;
   if (ex && ex.revenuImposable) {
+    // Le % est lui aussi calculé à partir de montants saisis (base/plafond) : masqué en bloc,
+    // avant même le calcul — la largeur de la barre ou la présence du message de dépassement
+    // révéleraient sinon un fait déduit d'un montant réel, même texte caché.
+    if (state.demo) return `<p class="muted">Plafond ${pctLabel} % du revenu : ***** (masqué en mode démo).</p>`;
     const pct = Math.min(999, Math.round((est.baseEligible20 / (est.plafond20 || 1)) * 100));
     const cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok';
     return `
       <p style="margin:.5rem 0 .2rem">
-        <strong>Plafond ${pctLabel} % du revenu</strong> (dons « intérêt général », base ${fmtDemo(est.baseEligible20)} / plafond ${fmtDemo(est.plafond20)}) — <span class="muted">${pct} %</span>
-        ${state.demo ? '' : `<button type="button" class="btn-link" id="editrevenu" title="Modifier le revenu imposable">✏️</button>`}
+        <strong>Plafond ${pctLabel} % du revenu</strong> (dons « intérêt général », base ${fmt(est.baseEligible20)} / plafond ${fmt(est.plafond20)}) — <span class="muted">${pct} %</span>
+        <button type="button" class="btn-link" id="editrevenu" title="Modifier le revenu imposable">✏️</button>
       </p>
       <div class="progress"><div class="progress-bar ${cls}" style="width:${Math.min(pct, 100)}%"></div></div>
-      ${pct >= 100 ? `<p class="muted">Plafond dépassé de ${fmtDemo(est.baseEligible20 - est.plafond20)} — reportable sur votre déclaration (${est.reportAnnees} ans), à suivre hors app.</p>` : ''}
-      ${state.demo ? '' : `<div id="revenuEditWrap" class="hidden">${formulaire(ex.revenuImposable / 100)}</div>`}`;
+      ${pct >= 100 ? `<p class="muted">Plafond dépassé de ${fmt(est.baseEligible20 - est.plafond20)} — reportable sur votre déclaration (${est.reportAnnees} ans), à suivre hors app.</p>` : ''}
+      <div id="revenuEditWrap" class="hidden">${formulaire(ex.revenuImposable / 100)}</div>`;
   }
   if (state.demo) return '<p class="muted">🕶️ Saisie du revenu imposable désactivée en mode démo.</p>';
   return formulaire(null);
