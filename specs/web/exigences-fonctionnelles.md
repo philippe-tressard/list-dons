@@ -57,5 +57,9 @@ Identifiants `EF-xxx`. Priorité : **M** (MVP) / **B** (backlog).
 - **EF-061 (M)** — **Export** CSV/JSON **+ justificatifs** (portabilité RGPD).
 - **EF-062 (M)** — **Suppression complète** des données.
 - **EF-063 (M)** — **Sauvegarde/restauration** (base + uploads).
+- **EF-064 (M)** — **Mode confidentialité (démo)** : bascule dans le bandeau d'en-tête, anonymise bénéficiaires (nom, identifiant, coordonnées → libellé générique stable « Bénéficiaire A/B/C… ») et montants (valeurs plausibles mais fictives) sur tout l'écran. Purement côté affichage — aucune donnée modifiée en base. Désactive en conséquence la saisie/édition/suppression et le téléchargement du PDF récapitulatif (qui reste toujours réel) tant que le mode est actif. Réversible à tout moment.
+
+## Pied de page
+- **EF-065 (M)** — Pied de page sur toutes les pages de l'app : copyright, licence (MIT), lien vers les **mentions légales** (page publique dédiée, sans authentification requise).
 
 > Détail métier et règles fiscales : [`../../SPECIFICATIONS.md`](../../SPECIFICATIONS.md) §5–§7.

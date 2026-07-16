@@ -3,7 +3,11 @@
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const app = $('#app');
-let state = { year: new Date().getFullYear(), tab: 'dashboard', cats: [] };
+let state = {
+  year: new Date().getFullYear(), tab: 'dashboard', cats: [],
+  demo: localStorage.getItem('ld_demo') === '1',
+  demoFactor: parseFloat(localStorage.getItem('ld_demo_factor')) || 1,
+};
 
 async function api(method, path, body, isForm) {
   const opt = { method, headers: {} };
@@ -30,6 +34,62 @@ function openModal(titre, innerHtml) {
   return back.querySelector('.modal');
 }
 function closeModal() { const m = $('.modal-backdrop'); if (m) m.remove(); }
+
+// ---------- Mode démo (confidentialité) ----------
+// Anonymise bénéficiaires et montants à l'écran (présentation/démo). Rien n'est modifié en base :
+// c'est une vue transformée des données juste avant rendu. Le PDF récapitulatif reste réel (usage déclaratif).
+function toggleDemo() {
+  const activation = !state.demo;
+  state.demo = activation;
+  if (activation) { state.demoFactor = 0.6 + Math.random() * 1.2; demoMapCache = null; }
+  localStorage.setItem('ld_demo', state.demo ? '1' : '0');
+  if (activation) localStorage.setItem('ld_demo_factor', String(state.demoFactor));
+  renderMain();
+}
+function lettreDemo(i) {
+  let n = i + 1, s = '';
+  while (n > 0) { const r = (n - 1) % 26; s = String.fromCharCode(65 + r) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+function fauxMontant(cents) {
+  if (!cents) return 0;
+  return Math.max(100, Math.round((cents * state.demoFactor) / 100) * 100);
+}
+function anonymiserBeneficiaire(b, map) {
+  if (!b) return b;
+  return { ...b, nom: map[b.id] || 'Bénéficiaire ?', identifiant: '', adresse: '', telephone: '', siteWeb: '', email: '' };
+}
+let demoMapCache = null;
+// Lettre stable par bénéficiaire (A, B, C… puis AA, AB…), basée sur le référentiel complet
+// (y compris archivés) pour rester cohérente sur tout le site, quelle que soit la vue affichée.
+async function getDemoMap() {
+  if (!demoMapCache) {
+    const tous = await api('GET', '/beneficiaires?all=1');
+    const map = {};
+    [...tous].sort((a, b) => a.nom.localeCompare(b.nom, 'fr')).forEach((b, i) => { map[b.id] = 'Bénéficiaire ' + lettreDemo(i); });
+    demoMapCache = map;
+  }
+  return demoMapCache;
+}
+async function vueDemo({ est, dons, benefs, rappel, tousLesDons }) {
+  if (!state.demo) return { est, dons, benefs, rappel, tousLesDons };
+  const map = await getDemoMap();
+  const anonBenef = (b) => anonymiserBeneficiaire(b, map);
+  const anonDon = (d) => ({ ...d, montant: fauxMontant(d.montant), beneficiaire: anonBenef(d.beneficiaire) });
+  return {
+    est: {
+      ...est,
+      totalDonne: fauxMontant(est.totalDonne),
+      reductionTotale: fauxMontant(est.reductionTotale),
+      detail: est.detail.map((x) => ({ ...x, base: fauxMontant(x.base), reduction: fauxMontant(x.reduction) })),
+      cases: Object.fromEntries(Object.entries(est.cases).map(([k, v]) => [k, fauxMontant(v)])),
+    },
+    dons: dons.map(anonDon),
+    benefs: benefs.map(anonBenef),
+    rappel: rappel.map((l) => ({ ...l, montantN1: fauxMontant(l.montantN1), montantN: fauxMontant(l.montantN), beneficiaire: anonBenef(l.beneficiaire) })),
+    tousLesDons: tousLesDons.map(anonDon),
+  };
+}
 
 // ---------- Boot ----------
 async function render() {
@@ -71,6 +131,7 @@ async function renderMain() {
   const exercices = await api('GET', '/exercices');
   if (!exercices.find((e) => e.annee === state.year) && exercices.length) state.year = exercices[0].annee;
   const years = [...new Set([...exercices.map((e) => e.annee), state.year])].sort((a, b) => b - a);
+  const anneeCourante = new Date().getFullYear();
   app.innerHTML = `
     <header class="topbar">
       <h1>🎗️ List-dons</h1>
@@ -79,15 +140,23 @@ async function renderMain() {
       </label>
       <button class="btn btn-sm btn-outline" id="addyear" style="background:#fff">+ Année</button>
       <span class="spacer"></span>
+      <button class="btn btn-sm ${state.demo ? 'btn-demo-on' : 'btn-outline'}" id="demotoggle" ${state.demo ? '' : 'style="background:#fff"'}
+        title="Anonymise les bénéficiaires et montants à l'écran (utile pour une démonstration) ; le PDF récapitulatif reste réel.">
+        🕶️ ${state.demo ? 'Démo active' : 'Confidentialité'}
+      </button>
       <button class="btn btn-sm btn-outline" id="logout" style="background:#fff">Déconnexion</button>
     </header>
     <nav class="tabs">
       ${[['dashboard', 'Tableau de bord'], ['benef', 'Bénéficiaires'], ['params', 'Paramètres']].map(([k, l]) => `<button data-tab="${k}" class="${state.tab === k ? 'active' : ''}">${l}</button>`).join('')}
     </nav>
     <main id="content"></main>
-    <p class="disclaimer">Estimation indicative — ne remplace pas votre déclaration officielle ni un conseil fiscal.<br>Prototype de test — implémentation cible en Rust.</p>`;
+    <p class="disclaimer">Estimation indicative — ne remplace pas votre déclaration officielle ni un conseil fiscal.<br>Prototype de test — implémentation cible en Rust.</p>
+    <footer class="app-footer">
+      © ${anneeCourante} List-dons &nbsp;·&nbsp; Licence MIT &nbsp;·&nbsp; <a href="/mentions-legales">Mentions légales</a>
+    </footer>`;
   $('#yearsel').onchange = (e) => { state.year = parseInt(e.target.value, 10); renderMain(); };
   $('#logout').onclick = async () => { await api('POST', '/logout'); render(); };
+  $('#demotoggle').onclick = toggleDemo;
   $('#addyear').onclick = async () => {
     const y = prompt('Année d\'imposition à créer ?', String(new Date().getFullYear()));
     if (!y) return;
@@ -103,13 +172,14 @@ async function renderMain() {
 // ---------- Dashboard ----------
 async function tabDashboard() {
   const c = $('#content');
-  const [est, dons, benefs, rappel, tousLesDons] = await Promise.all([
+  const [estR, donsR, benefsR, rappelR, tousLesDonsR] = await Promise.all([
     api('GET', '/estimation?annee=' + state.year),
     api('GET', '/dons?annee=' + state.year),
     api('GET', '/beneficiaires'),
     api('GET', '/rappel-n1?annee=' + state.year),
     api('GET', '/dons'),
   ]);
+  const { est, dons, benefs, rappel, tousLesDons } = await vueDemo({ est: estR, dons: donsR, benefs: benefsR, rappel: rappelR, tousLesDons: tousLesDonsR });
   const montantN1Par = {}; rappel.forEach((l) => { montantN1Par[l.beneficiaire.id] = l.montantN1; });
   const nonRenouveles = groupesNonRenouveles(tousLesDons, state.year);
   const anneesNonRenouvelees = Object.keys(nonRenouveles).map(Number).sort((a, b) => b - a);
@@ -119,7 +189,9 @@ async function tabDashboard() {
   c.innerHTML = `
     <div class="card">
       <h2 style="overflow:auto">Réduction d'impôt estimée ${state.year}
-        <a class="btn btn-sm btn-outline" style="float:right;font-family:'Segoe UI',system-ui,sans-serif" href="/api/exercices/${state.year}/pdf" target="_blank" rel="noopener">📄 PDF récapitulatif</a>
+        ${state.demo
+          ? '<span class="btn btn-sm btn-outline" style="float:right;font-family:\'Segoe UI\',system-ui,sans-serif;opacity:.5;cursor:not-allowed" title="Désactivé en mode démo (le PDF contient toujours les données réelles)">📄 PDF récapitulatif</span>'
+          : `<a class="btn btn-sm btn-outline" style="float:right;font-family:'Segoe UI',system-ui,sans-serif" href="/api/exercices/${state.year}/pdf" target="_blank" rel="noopener">📄 PDF récapitulatif</a>`}
       </h2>
       <div class="grid">
         <div class="stat"><div class="value">${fmt(est.reductionTotale)}</div><div class="label">Réduction estimée</div></div>
@@ -133,6 +205,7 @@ async function tabDashboard() {
 
     <div class="card">
       <h2>Ajouter un don</h2>
+      ${state.demo ? '<p class="muted">🕶️ Mode démo actif : saisie désactivée pour protéger vos données réelles.</p>' : `
       <div id="donerr"></div>
       <form id="donform">
         <div class="row">
@@ -168,7 +241,7 @@ async function tabDashboard() {
         </div>
         <label>Note / raison du don (facultatif)</label><input id="note" />
         <div class="form-actions"><button class="btn btn-primary" type="submit">Enregistrer</button></div>
-      </form>
+      </form>`}
     </div>
 
     <div class="card">
@@ -182,7 +255,7 @@ async function tabDashboard() {
           <td>${caseBadge(d.beneficiaire?.categorie)}</td>
           <td>${d.numeroRecu ? esc(d.numeroRecu) : '<span class="muted">—</span>'}</td>
           <td>${d.justificatifs.length ? '📎 ' + d.justificatifs.length : '<span class="muted">—</span>'}</td>
-          <td style="white-space:nowrap"><button class="btn-link" data-edit="${d.id}">✏️</button> <button class="btn-danger" data-del="${d.id}">🗑️</button></td>
+          <td style="white-space:nowrap">${state.demo ? '' : `<button class="btn-link" data-edit="${d.id}">✏️</button> <button class="btn-danger" data-del="${d.id}">🗑️</button>`}</td>
         </tr>`).join('')}
       </tbody></table>` : '<p class="muted">Aucun don.</p>'}
       ${totalNonRenouveles ? `
@@ -205,36 +278,39 @@ async function tabDashboard() {
       ${graphiqueHistorique(tousLesDons)}
     </div>`;
 
-  // handlers
-  $('#benefsel').onchange = (e) => $('#newbenef').classList.toggle('hidden', e.target.value !== '__new');
-  $('#freq').onchange = (e) => $('#pjwrap').classList.toggle('hidden', e.target.value !== 'unique');
-  $('#donform').onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      let benefId = $('#benefsel').value;
-      if (benefId === '__new') {
-        if (!$('#nb_nom').value) throw new Error('Nom du bénéficiaire requis');
-        const nb = await api('POST', '/beneficiaires', { nom: $('#nb_nom').value, categorie: $('#nb_cat').value, identifiant: $('#nb_id').value });
-        benefId = nb.id;
-      }
-      if (!benefId) throw new Error('Choisissez un bénéficiaire');
-      const freq = $('#freq').value;
-      if (freq === 'unique') {
-        const d = await api('POST', '/dons', { beneficiaireId: benefId, date: $('#date').value, montant: $('#montant').value, moyen: $('#moyen').value, numeroRecu: $('#numeroRecu').value, note: $('#note').value });
-        const fichier = $('#pj').files[0];
-        if (fichier) {
-          const fd = new FormData(); fd.append('fichier', fichier);
-          await api('POST', '/dons/' + d.id + '/justificatifs', fd, true);
+  // handlers (formulaire + actions absents du DOM en mode démo — rien à câbler)
+  if (!state.demo) {
+    $('#benefsel').onchange = (e) => $('#newbenef').classList.toggle('hidden', e.target.value !== '__new');
+    $('#freq').onchange = (e) => $('#pjwrap').classList.toggle('hidden', e.target.value !== 'unique');
+    $('#donform').onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        let benefId = $('#benefsel').value;
+        if (benefId === '__new') {
+          if (!$('#nb_nom').value) throw new Error('Nom du bénéficiaire requis');
+          const nb = await api('POST', '/beneficiaires', { nom: $('#nb_nom').value, categorie: $('#nb_cat').value, identifiant: $('#nb_id').value });
+          demoMapCache = null;
+          benefId = nb.id;
         }
-      } else {
-        const r = await api('POST', '/recurrents', { beneficiaireId: benefId, montant: $('#montant').value, frequence: freq, dateDebut: $('#date').value, moyen: $('#moyen').value, note: $('#note').value, annee: state.year });
-        alert(r.versementsGeneres + ' versement(s) généré(s) pour ' + state.year + '.');
-      }
-      tabDashboard();
-    } catch (err) { $('#donerr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
-  };
-  c.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { if (confirm('Supprimer ce don ?')) { await api('DELETE', '/dons/' + b.dataset.del); tabDashboard(); } });
-  c.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => editDon(dons.find((d) => d.id === b.dataset.edit), benefs));
+        if (!benefId) throw new Error('Choisissez un bénéficiaire');
+        const freq = $('#freq').value;
+        if (freq === 'unique') {
+          const d = await api('POST', '/dons', { beneficiaireId: benefId, date: $('#date').value, montant: $('#montant').value, moyen: $('#moyen').value, numeroRecu: $('#numeroRecu').value, note: $('#note').value });
+          const fichier = $('#pj').files[0];
+          if (fichier) {
+            const fd = new FormData(); fd.append('fichier', fichier);
+            await api('POST', '/dons/' + d.id + '/justificatifs', fd, true);
+          }
+        } else {
+          const r = await api('POST', '/recurrents', { beneficiaireId: benefId, montant: $('#montant').value, frequence: freq, dateDebut: $('#date').value, moyen: $('#moyen').value, note: $('#note').value, annee: state.year });
+          alert(r.versementsGeneres + ' versement(s) généré(s) pour ' + state.year + '.');
+        }
+        tabDashboard();
+      } catch (err) { $('#donerr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
+    };
+    c.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { if (confirm('Supprimer ce don ?')) { await api('DELETE', '/dons/' + b.dataset.del); tabDashboard(); } });
+    c.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => editDon(dons.find((d) => d.id === b.dataset.edit), benefs));
+  }
 }
 
 // Édition d'un don existant (champs + n° de reçu + pièces jointes)
@@ -381,10 +457,13 @@ function suiviBadge(code) {
 // ---------- Bénéficiaires ----------
 async function tabBenef() {
   const c = $('#content');
-  const benefs = await api('GET', '/beneficiaires?all=1');
+  const benefsR = await api('GET', '/beneficiaires?all=1');
+  const demoMap = state.demo ? await getDemoMap() : null;
+  const benefs = state.demo ? benefsR.map((b) => anonymiserBeneficiaire(b, demoMap)) : benefsR;
   c.innerHTML = `
     <div class="card">
       <h2>Nouveau bénéficiaire</h2>
+      ${state.demo ? '<p class="muted">🕶️ Mode démo actif : saisie désactivée pour protéger vos données réelles.</p>' : `
       <form id="bform">
         <div class="row">
           <div><label>Nom *</label><input id="b_nom" required /></div>
@@ -403,27 +482,30 @@ async function tabBenef() {
           <div><label>Email (facultatif)</label><input id="b_email" type="email" /></div>
         </div>
         <div class="form-actions"><button class="btn btn-primary">Ajouter</button></div>
-      </form>
+      </form>`}
     </div>
     <div class="card">
       <h2>Référentiel <span class="muted">(${benefs.length})</span></h2>
       ${benefs.length ? `<table><thead><tr><th>Nom</th><th>Catégorie</th><th>SIREN/RNA</th><th>Contact</th><th>Suivi</th><th></th></tr></thead><tbody>
         ${benefs.map((b) => `<tr><td>${esc(b.nom)}${b.archive ? ' <span class="muted">(archivé)</span>' : ''}</td><td>${esc(catLabel(b.categorie))}</td><td>${esc(b.identifiant) || '—'}</td>
           <td>${contactCell(b)}</td>
-          <td><select data-suivi="${b.id}">${Object.entries(SUIVI).map(([code, s]) => `<option value="${code}" ${b.indicateurSuivi === code ? 'selected' : ''}>${s.icon} ${s.label}</option>`).join('')}</select></td>
-          <td><button class="btn-link" data-editb="${b.id}">✏️</button></td></tr>`).join('')}
+          <td>${state.demo ? suiviBadge(b.indicateurSuivi) : `<select data-suivi="${b.id}">${Object.entries(SUIVI).map(([code, s]) => `<option value="${code}" ${b.indicateurSuivi === code ? 'selected' : ''}>${s.icon} ${s.label}</option>`).join('')}</select>`}</td>
+          <td>${state.demo ? '' : `<button class="btn-link" data-editb="${b.id}">✏️</button>`}</td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Aucun bénéficiaire.</p>'}
     </div>`;
-  $('#bform').onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await api('POST', '/beneficiaires', { nom: $('#b_nom').value, categorie: $('#b_cat').value, identifiant: $('#b_id').value, habiliteRecu: $('#b_hab').value === 'true',
-        adresse: $('#b_adr').value, telephone: $('#b_tel').value, siteWeb: $('#b_web').value, email: $('#b_email').value });
-      tabBenef();
-    } catch (err) { alert(err.message); }
-  };
-  c.querySelectorAll('[data-suivi]').forEach((s) => s.onchange = async () => { await api('PATCH', '/beneficiaires/' + s.dataset.suivi, { indicateurSuivi: s.value }); });
-  c.querySelectorAll('[data-editb]').forEach((b) => b.onclick = () => editBenef(benefs.find((x) => x.id === b.dataset.editb)));
+  if (!state.demo) {
+    $('#bform').onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        await api('POST', '/beneficiaires', { nom: $('#b_nom').value, categorie: $('#b_cat').value, identifiant: $('#b_id').value, habiliteRecu: $('#b_hab').value === 'true',
+          adresse: $('#b_adr').value, telephone: $('#b_tel').value, siteWeb: $('#b_web').value, email: $('#b_email').value });
+        demoMapCache = null;
+        tabBenef();
+      } catch (err) { alert(err.message); }
+    };
+    c.querySelectorAll('[data-suivi]').forEach((s) => s.onchange = async () => { await api('PATCH', '/beneficiaires/' + s.dataset.suivi, { indicateurSuivi: s.value }); });
+    c.querySelectorAll('[data-editb]').forEach((b) => b.onclick = () => editBenef(benefs.find((x) => x.id === b.dataset.editb)));
+  }
 }
 function contactCell(b) {
   const parts = [];

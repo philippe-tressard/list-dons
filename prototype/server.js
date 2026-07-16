@@ -257,6 +257,8 @@ app.use('/api', api);
 
 // ---- IHM statique -------------------------------------------------------
 app.use(express.static(path.join(__dirname, 'public')));
+// Mentions légales : page publique (pas d'auth requise), URL propre sans .html
+app.get('/mentions-legales', (req, res) => res.sendFile(path.join(__dirname, 'public', 'mentions-legales.html')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 8080;

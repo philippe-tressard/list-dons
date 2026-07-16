@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mentions légales — List-dons</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎗️</text></svg>" />
+  <style>
+    .legal-page { max-width: 680px; margin: 2rem auto; padding: 0 1.5rem 1.5rem; }
+    .legal-page .back-link { display: inline-block; font-size: .875rem; margin-bottom: 1.5rem; }
+    .legal-page section { margin-bottom: 1.5rem; }
+    .legal-page h2 { font-size: 1rem; margin-bottom: .4rem; }
+    .legal-page p { font-size: .9rem; line-height: 1.7; }
+    .legal-page .oss-section { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+  <main class="legal-page">
+    <a href="/" class="back-link">← Retour</a>
+    <h1>Mentions légales</h1>
+
+    <section>
+      <h2>Éditeur</h2>
+      <p>List-dons est un logiciel personnel et non commercial, développé par Philippe Tressard et publié en open source sous licence MIT.</p>
+    </section>
+
+    <section>
+      <h2>Nature du service</h2>
+      <p>List-dons est un outil <strong>auto-hébergé</strong>, conçu pour un usage <strong>personnel et mono-foyer</strong> : chaque instance est déployée et exploitée par son propre utilisateur, pour ses propres données. Il n'existe pas d'éditeur commercial centralisant les données de plusieurs foyers.</p>
+      <p>Cette instance est accessible uniquement sur le <strong>réseau local (LAN)</strong> de son exploitant, sans exposition sur Internet.</p>
+    </section>
+
+    <section>
+      <h2>Responsable de traitement &amp; données personnelles</h2>
+      <p>Sur chaque instance, le <strong>responsable de traitement</strong> des données saisies (dons, bénéficiaires, justificatifs) est l'utilisateur qui héberge et exploite l'application. Les données sont stockées localement, sans transfert hors de l'Union européenne. L'utilisateur dispose d'un droit d'export (portabilité) et de suppression complète de ses données, directement depuis l'application.</p>
+    </section>
+
+    <section>
+      <h2>Avertissement</h2>
+      <p>Les estimations de réduction d'impôt fournies par List-dons sont <strong>indicatives</strong> : elles ne remplacent ni votre déclaration officielle ni un conseil fiscal professionnel.</p>
+    </section>
+
+    <section class="oss-section">
+      <h2>Logiciel libre</h2>
+      <p>
+        List-dons est distribué sous licence <strong>MIT</strong>. Le code source est disponible sur
+        <a href="https://github.com/philippe-tressard/list-dons" target="_blank" rel="noopener noreferrer">GitHub&nbsp;→</a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    © <span id="year"></span> List-dons &nbsp;·&nbsp; Licence MIT &nbsp;·&nbsp;
+    <a href="https://github.com/philippe-tressard/list-dons" target="_blank" rel="noopener noreferrer">GitHub</a>
+  </footer>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</body>
+</html>

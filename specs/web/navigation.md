@@ -18,6 +18,12 @@ List-dons
 ## Sélecteur d'année (exercice)
 Toujours visible (barre supérieure) : change le contexte de toutes les vues. Action « Ouvrir un nouvel exercice » → parcours rappel N-1.
 
+## Mode confidentialité (démo)
+Bascule toujours visible dans la barre supérieure (icône 🕶️). Anonymise bénéficiaires et montants sur toutes les vues (affichage uniquement, réversible). Saisie/édition/suppression et téléchargement du PDF récapitulatif désactivés tant qu'actif.
+
+## Pied de page
+Présent sur toutes les pages authentifiées : copyright, licence, lien **Mentions légales** (page publique, sans authentification).
+
 ## Vues à onglets
 - Fiche exercice : **Dons / Synthèse / Justificatifs**.
 - (Pattern onglets uniforme, cf. charte.)
