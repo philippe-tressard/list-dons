@@ -124,7 +124,6 @@ async function tabDashboard() {
       <div class="grid">
         <div class="stat"><div class="value">${fmt(est.reductionTotale)}</div><div class="label">Réduction estimée</div></div>
         <div class="stat"><div class="value">${fmt(est.totalDonne)}</div><div class="label">Total donné</div></div>
-        <div class="stat"><div class="value">${est.reportable ? fmt(est.reportable) : '0 €'}</div><div class="label">Report (5 ans)</div></div>
       </div>
       <p style="margin:.75rem 0 .25rem"><strong>Cases 2042 RICI :</strong> ${casesHtml}</p>
       ${est.detail.length ? `<table><thead><tr><th>Régime</th><th>Taux</th><th>Base</th><th>Réduction</th><th>Case</th></tr></thead><tbody>
@@ -165,8 +164,9 @@ async function tabDashboard() {
         </div>
         <div class="row">
           <div><label>N° de reçu fiscal (facultatif)</label><input id="numeroRecu" /></div>
-          <div><label>Note / raison du don (facultatif)</label><input id="note" /></div>
+          <div id="pjwrap"><label>Pièce jointe / reçu (facultatif)</label><input id="pj" type="file" accept=".pdf,.jpg,.jpeg,.png" /></div>
         </div>
+        <label>Note / raison du don (facultatif)</label><input id="note" />
         <div class="form-actions"><button class="btn btn-primary" type="submit">Enregistrer</button></div>
       </form>
     </div>
@@ -207,6 +207,7 @@ async function tabDashboard() {
 
   // handlers
   $('#benefsel').onchange = (e) => $('#newbenef').classList.toggle('hidden', e.target.value !== '__new');
+  $('#freq').onchange = (e) => $('#pjwrap').classList.toggle('hidden', e.target.value !== 'unique');
   $('#donform').onsubmit = async (e) => {
     e.preventDefault();
     try {
@@ -219,7 +220,12 @@ async function tabDashboard() {
       if (!benefId) throw new Error('Choisissez un bénéficiaire');
       const freq = $('#freq').value;
       if (freq === 'unique') {
-        await api('POST', '/dons', { beneficiaireId: benefId, date: $('#date').value, montant: $('#montant').value, moyen: $('#moyen').value, numeroRecu: $('#numeroRecu').value, note: $('#note').value });
+        const d = await api('POST', '/dons', { beneficiaireId: benefId, date: $('#date').value, montant: $('#montant').value, moyen: $('#moyen').value, numeroRecu: $('#numeroRecu').value, note: $('#note').value });
+        const fichier = $('#pj').files[0];
+        if (fichier) {
+          const fd = new FormData(); fd.append('fichier', fichier);
+          await api('POST', '/dons/' + d.id + '/justificatifs', fd, true);
+        }
       } else {
         const r = await api('POST', '/recurrents', { beneficiaireId: benefId, montant: $('#montant').value, frequence: freq, dateDebut: $('#date').value, moyen: $('#moyen').value, note: $('#note').value, annee: state.year });
         alert(r.versementsGeneres + ' versement(s) généré(s) pour ' + state.year + '.');

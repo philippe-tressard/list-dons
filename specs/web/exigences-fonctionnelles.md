@@ -36,7 +36,7 @@ Identifiants `EF-xxx`. Priorité : **M** (MVP) / **B** (backlog).
 - **EF-040 (M)** — **Estimer la réduction d'impôt** de l'année (moteur modulaire, §6).
 - **EF-041 (M)** — **Détail par régime** avec **cases de déclaration** (7UF, 7UH, 7UD…).
 - **EF-042 (M)** — Détail **par bénéficiaire** et **par catégorie**.
-- **EF-043 (M)** — Gestion du **plafond 20 %** et du **report sur 5 ans**.
+- **EF-043 (M)** — Gestion du **plafond 20 %** : calcul de l'excédent de l'exercice courant au-delà du plafond. *Le report effectif de cet excédent sur les exercices suivants (déclaration, suivi de consommation sur 5 ans) n'est pas géré par l'app — voir suivi du report en backlog.* Pas d'affichage d'un excédent non actionnable dans l'IHM.
 - **EF-044 (B)** — Simulateur « et si je donne X € de plus ? ».
 - **EF-045 (M)** — **Récapitulatif fiscal annuel en PDF** : résumé de l'estimation, cases 2042 RICI à reporter, détail chronologique des dons (date, bénéficiaire, case, montant, n° de reçu). Aide à remplir la déclaration ; ne s'y substitue pas.
 
