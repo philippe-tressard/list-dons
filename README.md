@@ -6,33 +6,43 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
-  <img src="https://img.shields.io/badge/status-spécification-orange.svg" alt="Statut : spécification" />
-  <img src="https://img.shields.io/badge/rust-backend-000000.svg" alt="Rust" />
-  <img src="https://img.shields.io/badge/SvelteKit-front-ff3e00.svg" alt="SvelteKit" />
+  <img src="https://img.shields.io/badge/statut-prototype%20déployé-brightgreen.svg" alt="Statut : prototype déployé" />
+  <img src="https://img.shields.io/badge/prototype-Node%2FExpress-339933.svg" alt="Prototype Node" />
+  <img src="https://img.shields.io/badge/cible-Rust%20%2B%20SvelteKit-000000.svg" alt="Implémentation cible : Rust + SvelteKit" />
 </p>
 
 ---
 
-> **Statut : cadrage / spécification.** L'application n'est pas encore développée — ce dépôt contient pour l'instant les **spécifications**.
+> **Statut : prototype fonctionnel déployé et utilisé.** Un prototype Node/Express ([`prototype/`](prototype/)) implémente l'essentiel des spécifications et tourne en usage réel, auto-hébergé sur un réseau local. L'**implémentation cible** (Rust + SvelteKit + SQLite, voir [`specs/`](specs/)) n'a pas encore été commencée.
 
 ## Objectif
 
 Pour chaque **année d'imposition**, List-dons permet de :
 
 - **saisir les dons** ouvrant droit à réduction d'impôt (art. 200 du CGI) — ponctuels ou récurrents ;
-- connaître le **montant total par bénéficiaire** ;
-- estimer la **réduction d'impôt probable** ;
-- **conserver et retrouver les justificatifs** (reçus fiscaux).
+- gérer un **référentiel de bénéficiaires** réutilisable (coordonnées, catégorie fiscale, suivi) ;
+- estimer la **réduction d'impôt probable**, avec le détail par régime et le plafond du revenu imposable ;
+- comparer les dons d'une année à l'autre (**rappel N-1**, historique pluriannuel) ;
+- **conserver et retrouver les justificatifs** (reçus fiscaux) ;
+- générer un **récapitulatif PDF** pour aider à la déclaration ;
+- présenter l'application sans exposer de données réelles (**mode confidentialité**).
 
 Application **mono-foyer**, **auto-hébergée**, **accès local (LAN)**, respectueuse de la vie privée (**RGPD**).
 
+## État actuel
+
+- **Prototype fonctionnel** ([`prototype/`](prototype/), Node/Express + JS vanilla) : couvre l'authentification, les exercices, les bénéficiaires, les dons (uniques/récurrents), les justificatifs, le moteur fiscal (barèmes par année avec héritage N ← N-1, plafond du revenu imposable), le rappel N-1, l'historique pluriannuel, le récapitulatif PDF et le mode confidentialité. Détail complet : [`prototype/README.md`](prototype/README.md).
+- **Déployé** sur un Raspberry Pi du foyer, isolé d'une autre application co-hébergée sur la même machine — voir [`deploy/README.md`](deploy/README.md) pour les garanties d'isolation et la procédure.
+- **Implémentation cible** (Rust + Axum + SQLite + SvelteKit) : pas encore commencée. Le prototype existe car Rust et Docker n'étaient pas disponibles sur la machine de développement initiale.
+
 ## Stack
 
-| Composant | Technologie |
-|---|---|
-| Backend | Rust (Axum) · SQLite · sqlx |
-| Frontend | SvelteKit · TypeScript |
-| Déploiement | Docker Compose · Caddy |
+| Composant | Prototype (actuel) | Cible (spécifiée, pas commencée) |
+|---|---|---|
+| Backend | Node.js · Express | Rust · Axum · sqlx |
+| Persistance | Fichier JSON | SQLite |
+| Frontend | JS vanilla | SvelteKit · TypeScript |
+| Déploiement | Docker Compose | Docker Compose · Caddy |
 
 ## Spécifications
 

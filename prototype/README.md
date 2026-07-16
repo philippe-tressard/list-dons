@@ -1,16 +1,23 @@
 # Prototype fonctionnel — List-dons (Node)
 
-> ⚠️ **Prototype de test.** Il sert à **valider l'UX et le moteur fiscal** rapidement.
+> ⚠️ **Prototype fonctionnel, déployé et en usage réel.** Il valide l'UX et le moteur fiscal en conditions réelles.
 > L'implémentation **cible** reste **Rust (Axum) + SvelteKit + SQLite**, conformément aux spécifications (`../SPECIFICATIONS.md`, `../specs/`).
-> Ce prototype a été fait sur une machine sans Rust ni Docker, pour livrer quelque chose de testable immédiatement.
+> Ce prototype a été fait sur une machine sans Rust ni Docker, pour livrer quelque chose de testable immédiatement — il a fini par devenir l'instance réellement utilisée.
 
 ## Ce qui fonctionne
+
 - **Authentification** mono-foyer (création du compte au 1er lancement, connexion, déconnexion, session cookie).
-- **Exercices** (années d'imposition) : création, sélection, revenu imposable (plafond 20 %).
-- **Bénéficiaires** : référentiel réutilisable, catégorie fiscale, indicateur de suivi.
-- **Dons** : uniques ou **récurrents** (mensuel/trimestriel/annuel → génération des versements rattachés à l'année), note/raison, suppression.
-- **Justificatifs** : attacher un fichier à un don.
-- **Moteur fiscal** (art. 200 CGI) : réduction estimée, détail par régime, **cases 7UF / 7UD / 7UH**, plafond 20 %, report — barèmes **2025–2027**.
+- **Exercices** (années d'imposition) : création, sélection.
+- **Bénéficiaires** : référentiel réutilisable, création et **édition**, coordonnées optionnelles (SIREN/RNA, adresse, téléphone, site web, email), catégorie fiscale, **indicateur de suivi** (de confiance / neutre / à surveiller / à éviter).
+- **Dons** : uniques ou **récurrents** (mensuel/trimestriel/annuel → génération des versements rattachés à l'année) ; **édition** et suppression ; n° de reçu fiscal ; note/raison ; plusieurs dons uniques pour un même bénéficiaire sur un même exercice.
+- **Justificatifs** : attacher une pièce jointe **dès la saisie du don** (ou après, en édition) ; consulter/télécharger ; supprimer.
+- **Moteur fiscal** (art. 200 CGI) : réduction estimée, détail par régime, **cases 7UF / 7UD / 7UH**, **plafond du revenu imposable** (jauge sur le tableau de bord, saisie contextuelle, modification), report — **barèmes par année datés avec héritage N ← N-1** (jamais de taux codé en dur), vérifiés par un auto-test (`node lib/fiscal.selftest.js`).
+- **Rappel N-1** : colonne « montant N-1 » dans le tableau des dons, section « Non renouvelée » (tout l'historique, groupée par dernière année de don).
+- **Historique pluriannuel** : graphique en barres empilées par bénéficiaire (SVG, sans dépendance).
+- **Récapitulatif fiscal en PDF** : estimation, cases 2042 RICI, détail chronologique des dons, détail agrégé par bénéficiaire (avec coordonnées disponibles).
+- **Récapitulatif des barèmes par exercice** (Paramètres) : règles réellement appliquées à chaque exercice et leur année source en cas d'héritage.
+- **Mode confidentialité (démo)** : anonymise bénéficiaires (`Bénéficiaire A/B/C…`) et masque (`*****`) tout montant saisi ou calculé, pour présenter l'app sans exposer de données réelles. Réversible.
+- **Pied de page** : copyright, licence, mentions légales (page publique dédiée).
 
 ## Lancer
 
@@ -25,7 +32,16 @@ Au premier lancement, créez votre compte.
 
 Variable `PORT` pour changer de port (défaut 8080). Données dans `prototype/data/` (non versionné).
 
+## Vérifier le moteur fiscal
+
+```bash
+node lib/fiscal.selftest.js
+```
+
+Auto-test sans dépendance : fixture de référence (specs §6.7) + isolation du barème par année (un barème ajouté pour une année future n'affecte jamais les exercices antérieurs).
+
 ## Limites (assumées, prototype)
+
 - Persistance = fichier JSON (cible : SQLite). Hachage = bcrypt (cible : Argon2).
 - Récurrence générée à la création pour l'année en cours (pas de planificateur).
-- Pas encore : comparatif N-1 dans l'IHM, OCR, export, HTTPS (à faire dans l'implémentation Rust).
+- Pas encore : OCR des reçus, export CSV/JSON (portabilité RGPD), HTTPS (à faire dans l'implémentation Rust).
