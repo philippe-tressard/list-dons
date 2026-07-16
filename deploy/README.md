@@ -48,7 +48,7 @@ Les données (base + uploads) sont dans le volume `listdons_data`, indépendant 
 
 ## Sauvegarde (isolée)
 
-`backup-listdons.sh` sauvegarde le volume `listdons_data` (base + reçus) vers `~/list-dons/backups`, en `.tar.gz` horodaté, avec rotation (14 dernières). Tourne en `ptressard`, ne touche que les ressources `listdons_*`.
+`backup-listdons.sh` sauvegarde le volume `listdons_data` (base + reçus) vers `~/list-dons/backups`, en `.tar.gz` horodaté, avec rotation (**7 dernières = 1 semaine**, les plus anciennes sont supprimées). Tourne en `ptressard`, ne touche que les ressources `listdons_*`.
 
 Cron quotidien (04:15, hors des créneaux 5Hostachy) :
 ```bash

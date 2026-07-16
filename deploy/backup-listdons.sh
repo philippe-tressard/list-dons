@@ -17,7 +17,7 @@ set -euo pipefail
 
 VOLUME="listdons_data"
 BACKUP_DIR="${HOME}/list-dons/backups"
-KEEP=14                                   # nombre de sauvegardes conservées
+KEEP=7                                    # nombre de sauvegardes conservées (1 semaine)
 IMAGE="listdons-app:latest"               # image déjà présente (base alpine) — pas de pull
 
 mkdir -p "$BACKUP_DIR"
