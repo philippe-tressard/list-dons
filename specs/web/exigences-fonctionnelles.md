@@ -36,9 +36,9 @@ Identifiants `EF-xxx`. Priorité : **M** (MVP) / **B** (backlog).
 - **EF-040 (M)** — **Estimer la réduction d'impôt** de l'année (moteur modulaire, §6).
 - **EF-041 (M)** — **Détail par régime** avec **cases de déclaration** (7UF, 7UH, 7UD…).
 - **EF-042 (M)** — Détail **par bénéficiaire** et **par catégorie**.
-- **EF-043 (M)** — Gestion du **plafond 20 %** : calcul de l'excédent de l'exercice courant au-delà du plafond. *Le report effectif de cet excédent sur les exercices suivants (déclaration, suivi de consommation sur 5 ans) n'est pas géré par l'app — voir suivi du report en backlog.* Pas d'affichage d'un excédent non actionnable dans l'IHM.
+- **EF-043 (M)** — Gestion du **plafond 20 %** : calcul de l'excédent de l'exercice courant au-delà du plafond. *Le report effectif de cet excédent sur les exercices suivants (déclaration, suivi de consommation sur 5 ans) n'est pas géré par l'app — voir suivi du report en backlog.* Pas d'affichage d'un excédent non actionnable dans l'IHM. **Jauge de plafond** (tableau de bord) : base éligible / plafond calculé, en %, dès que le revenu imposable est renseigné — permet d'anticiper le dépassement avant de faire un nouveau don. Tant que le revenu n'est pas renseigné, **saisie rapide contextuelle** directement sur le tableau de bord (en plus du champ dans Paramètres), pour ne pas obliger un détour.
 - **EF-044 (B)** — Simulateur « et si je donne X € de plus ? ».
-- **EF-045 (M)** — **Récapitulatif fiscal annuel en PDF** : résumé de l'estimation, cases 2042 RICI à reporter, détail chronologique des dons (date, bénéficiaire, case, montant, n° de reçu). Aide à remplir la déclaration ; ne s'y substitue pas.
+- **EF-045 (M)** — **Récapitulatif fiscal annuel en PDF** : résumé de l'estimation (dont plafond 20 % si renseigné), cases 2042 RICI à reporter, détail chronologique des dons (date, bénéficiaire, case, montant, n° de reçu) **puis récapitulatif agrégé par bénéficiaire** (nombre de dons, total) en fin de document. Aide à remplir la déclaration ; ne s'y substitue pas.
 
 ## Comparatif / rappel
 - **EF-050 (M)** — **Rappel des bénéficiaires N-1** + report rapide à l'ouverture d'un exercice.
@@ -57,7 +57,7 @@ Identifiants `EF-xxx`. Priorité : **M** (MVP) / **B** (backlog).
 - **EF-061 (M)** — **Export** CSV/JSON **+ justificatifs** (portabilité RGPD).
 - **EF-062 (M)** — **Suppression complète** des données.
 - **EF-063 (M)** — **Sauvegarde/restauration** (base + uploads).
-- **EF-064 (M)** — **Mode confidentialité (démo)** : bascule dans le bandeau d'en-tête, anonymise bénéficiaires (nom, identifiant, coordonnées → libellé générique stable « Bénéficiaire A/B/C… ») et montants (valeurs plausibles mais fictives) sur tout l'écran. Purement côté affichage — aucune donnée modifiée en base. Désactive en conséquence la saisie/édition/suppression et le téléchargement du PDF récapitulatif (qui reste toujours réel) tant que le mode est actif. Réversible à tout moment.
+- **EF-064 (M)** — **Mode confidentialité (démo)** : bascule dans le bandeau d'en-tête, anonymise bénéficiaires (nom, identifiant, coordonnées → libellé générique stable « Bénéficiaire A/B/C… ») et montants (valeurs plausibles mais fictives) sur tout l'écran, **y compris le revenu imposable et la jauge de plafond 20 %**. Purement côté affichage — aucune donnée modifiée en base. Désactive en conséquence la saisie/édition/suppression (dont la saisie du revenu imposable) et le téléchargement du PDF récapitulatif (qui reste toujours réel) tant que le mode est actif. Réversible à tout moment.
 
 ## Pied de page
 - **EF-065 (M)** — Pied de page sur toutes les pages de l'app : copyright, licence (MIT), lien vers les **mentions légales** (page publique dédiée, sans authentification requise).

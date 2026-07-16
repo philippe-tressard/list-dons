@@ -71,8 +71,8 @@ async function getDemoMap() {
   }
   return demoMapCache;
 }
-async function vueDemo({ est, dons, benefs, rappel, tousLesDons }) {
-  if (!state.demo) return { est, dons, benefs, rappel, tousLesDons };
+async function vueDemo({ est, dons, benefs, rappel, tousLesDons, ex }) {
+  if (!state.demo) return { est, dons, benefs, rappel, tousLesDons, ex };
   const map = await getDemoMap();
   const anonBenef = (b) => anonymiserBeneficiaire(b, map);
   const anonDon = (d) => ({ ...d, montant: fauxMontant(d.montant), beneficiaire: anonBenef(d.beneficiaire) });
@@ -83,11 +83,14 @@ async function vueDemo({ est, dons, benefs, rappel, tousLesDons }) {
       reductionTotale: fauxMontant(est.reductionTotale),
       detail: est.detail.map((x) => ({ ...x, base: fauxMontant(x.base), reduction: fauxMontant(x.reduction) })),
       cases: Object.fromEntries(Object.entries(est.cases).map(([k, v]) => [k, fauxMontant(v)])),
+      plafond20: est.plafond20 != null ? fauxMontant(est.plafond20) : null,
+      baseEligible20: fauxMontant(est.baseEligible20),
     },
     dons: dons.map(anonDon),
     benefs: benefs.map(anonBenef),
     rappel: rappel.map((l) => ({ ...l, montantN1: fauxMontant(l.montantN1), montantN: fauxMontant(l.montantN), beneficiaire: anonBenef(l.beneficiaire) })),
     tousLesDons: tousLesDons.map(anonDon),
+    ex: ex ? { ...ex, revenuImposable: ex.revenuImposable != null ? fauxMontant(ex.revenuImposable) : null } : ex,
   };
 }
 
@@ -169,17 +172,38 @@ async function renderMain() {
   else await tabParams();
 }
 
+// Plafond 20 % du revenu imposable (dons « intérêt général ») : jauge si le revenu est renseigné,
+// sinon une saisie rapide contextuelle (plutôt que d'obliger un détour par Paramètres).
+function blocPlafond20(est, ex) {
+  if (ex && ex.revenuImposable) {
+    const pct = Math.min(999, Math.round((est.baseEligible20 / (est.plafond20 || 1)) * 100));
+    const cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok';
+    return `
+      <p style="margin:.5rem 0 .2rem"><strong>Plafond 20 % du revenu</strong> (dons « intérêt général », base ${fmt(est.baseEligible20)} / plafond ${fmt(est.plafond20)}) — <span class="muted">${pct} %</span></p>
+      <div class="progress"><div class="progress-bar ${cls}" style="width:${Math.min(pct, 100)}%"></div></div>
+      ${pct >= 100 ? `<p class="muted">Plafond dépassé de ${fmt(est.baseEligible20 - est.plafond20)} — reportable sur votre déclaration (5 ans), à suivre hors app.</p>` : ''}`;
+  }
+  if (state.demo) return '<p class="muted">🕶️ Plafond 20 % masqué en mode démo.</p>';
+  return `
+    <div class="row" style="align-items:flex-end;margin:.5rem 0">
+      <div><label>Revenu imposable du foyer (€) <span class="muted">— pour anticiper le plafond de 20 %</span></label><input id="revenuInline" type="number" step="1" min="0" placeholder="facultatif" /></div>
+      <div style="flex:0"><button class="btn btn-sm btn-primary" type="button" id="saverevInline">Enregistrer</button></div>
+    </div>`;
+}
+
 // ---------- Dashboard ----------
 async function tabDashboard() {
   const c = $('#content');
-  const [estR, donsR, benefsR, rappelR, tousLesDonsR] = await Promise.all([
+  const [estR, donsR, benefsR, rappelR, tousLesDonsR, exercices] = await Promise.all([
     api('GET', '/estimation?annee=' + state.year),
     api('GET', '/dons?annee=' + state.year),
     api('GET', '/beneficiaires'),
     api('GET', '/rappel-n1?annee=' + state.year),
     api('GET', '/dons'),
+    api('GET', '/exercices'),
   ]);
-  const { est, dons, benefs, rappel, tousLesDons } = await vueDemo({ est: estR, dons: donsR, benefs: benefsR, rappel: rappelR, tousLesDons: tousLesDonsR });
+  const exR = exercices.find((e) => e.annee === state.year);
+  const { est, dons, benefs, rappel, tousLesDons, ex } = await vueDemo({ est: estR, dons: donsR, benefs: benefsR, rappel: rappelR, tousLesDons: tousLesDonsR, ex: exR });
   const montantN1Par = {}; rappel.forEach((l) => { montantN1Par[l.beneficiaire.id] = l.montantN1; });
   const nonRenouveles = groupesNonRenouveles(tousLesDons, state.year);
   const anneesNonRenouvelees = Object.keys(nonRenouveles).map(Number).sort((a, b) => b - a);
@@ -198,6 +222,7 @@ async function tabDashboard() {
         <div class="stat"><div class="value">${fmt(est.totalDonne)}</div><div class="label">Total donné</div></div>
       </div>
       <p style="margin:.75rem 0 .25rem"><strong>Cases 2042 RICI :</strong> ${casesHtml}</p>
+      ${blocPlafond20(est, ex)}
       ${est.detail.length ? `<table><thead><tr><th>Régime</th><th>Taux</th><th>Base</th><th>Réduction</th><th>Case</th></tr></thead><tbody>
         ${est.detail.map((d) => `<tr><td>${esc(d.libelle)}</td><td>${Math.round(d.taux * 100)} %</td><td>${fmt(d.base)}</td><td>${fmt(d.reduction)}</td><td>${d.case}</td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Aucun don saisi pour cet exercice.</p>'}
@@ -280,6 +305,11 @@ async function tabDashboard() {
 
   // handlers (formulaire + actions absents du DOM en mode démo — rien à câbler)
   if (!state.demo) {
+    const btnRev = $('#saverevInline');
+    if (btnRev) btnRev.onclick = async () => {
+      try { await api('PATCH', '/exercices/' + state.year, { revenuImposable: $('#revenuInline').value }); tabDashboard(); }
+      catch (err) { alert(err.message); }
+    };
     $('#benefsel').onchange = (e) => $('#newbenef').classList.toggle('hidden', e.target.value !== '__new');
     $('#freq').onchange = (e) => $('#pjwrap').classList.toggle('hidden', e.target.value !== 'unique');
     $('#donform').onsubmit = async (e) => {

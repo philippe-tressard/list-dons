@@ -67,11 +67,12 @@ function estimer(dons, revenuImposable, annee) {
   const gGen = bareme.regimes.ir_general;
   const baseGeneral = sommes.ir_general + surplusColuche;
   let baseGeneralRetenue = baseGeneral;
+  let plafond20 = null;
   if (revenuImposable && revenuImposable > 0) {
-    const plafond = Math.round(revenuImposable * gGen.plafond.valeur);
-    if (baseGeneral > plafond) {
-      baseGeneralRetenue = plafond;
-      reportable = baseGeneral - plafond;
+    plafond20 = Math.round(revenuImposable * gGen.plafond.valeur);
+    if (baseGeneral > plafond20) {
+      baseGeneralRetenue = plafond20;
+      reportable = baseGeneral - plafond20;
     }
   }
   const redGeneral = Math.round(baseGeneralRetenue * gGen.taux);
@@ -105,6 +106,9 @@ function estimer(dons, revenuImposable, annee) {
     reportAnnees: bareme.report_annees,
     detail,
     cases,
+    // Plafond 20 % du revenu imposable (dons "intérêt général") : null si revenu non renseigné.
+    plafond20,
+    baseEligible20: baseGeneral,
     // versions € pour l'affichage
     _euros: {
       totalDonne: euros(totalDonne),
