@@ -27,7 +27,6 @@ function openModal(titre, innerHtml) {
   back.innerHTML = `<div class="modal"><h2>${esc(titre)}<button class="close" type="button" aria-label="Fermer">×</button></h2><div class="modal-body">${innerHtml}</div></div>`;
   document.body.appendChild(back);
   back.querySelector('.close').onclick = closeModal;
-  back.onclick = (e) => { if (e.target === back) closeModal(); };
   return back.querySelector('.modal');
 }
 function closeModal() { const m = $('.modal-backdrop'); if (m) m.remove(); }
