@@ -99,15 +99,16 @@ function genererRecapitulatif(res, { annee, identifiant, dons, estimation }) {
     doc.x = left; doc.y = y + ROW_H + 16;
   }
 
-  // ---- Détail par bénéficiaire (récapitulatif de fin) ---------------------
+  // ---- Détail par bénéficiaire (récapitulatif de fin, avec coordonnées si disponibles) ----
   const parBenef = {};
   dons.forEach((d) => {
     const id = d.beneficiaireId;
-    if (!parBenef[id]) parBenef[id] = { nom: d.beneficiaire?.nom || '?', case: caseParCategorie[d.beneficiaire?.categorie] || '—', nb: 0, total: 0 };
+    if (!parBenef[id]) parBenef[id] = { b: d.beneficiaire, case: caseParCategorie[d.beneficiaire?.categorie] || '—', nb: 0, total: 0 };
     parBenef[id].nb++;
     parBenef[id].total += d.montant;
   });
   const lignesBenef = Object.values(parBenef).sort((a, b) => b.total - a.total);
+  const LARGEUR_BENEF = 475;
 
   if (doc.y > bottomLimit - 60) doc.addPage();
   doc.fontSize(13).fillColor(COL.primary).text(`Détail par bénéficiaire (${lignesBenef.length})`);
@@ -116,17 +117,31 @@ function genererRecapitulatif(res, { annee, identifiant, dons, estimation }) {
   if (!lignesBenef.length) {
     doc.fontSize(10).fillColor(COL.muted).text('Aucun bénéficiaire pour cet exercice.');
   } else {
-    const COLS_BENEF = [
-      { label: 'Bénéficiaire', width: 260 },
-      { label: 'Case', width: 55 },
-      { label: 'Nb dons', width: 60 },
-      { label: 'Total', width: 100 },
-    ];
-    const { y: yFin2 } = dessinerTableau(doc, {
-      left, bottomLimit, colonnes: COLS_BENEF, startY: doc.y,
-      lignes: lignesBenef.map((l) => [l.nom, l.case, String(l.nb), fmtEuros(l.total)]),
+    lignesBenef.forEach((l, i) => {
+      const b = l.b || {};
+      const coords = [];
+      if (b.identifiant) coords.push(`SIREN/RNA : ${b.identifiant}`);
+      if (b.adresse) coords.push(`Adresse : ${b.adresse}`);
+      if (b.telephone) coords.push(`Tél : ${b.telephone}`);
+      if (b.siteWeb) coords.push(`Web : ${b.siteWeb}`);
+      if (b.email) coords.push(`Email : ${b.email}`);
+
+      if (doc.y + 20 > bottomLimit) doc.addPage();
+      doc.font('Helvetica-Bold').fontSize(10).fillColor(COL.text)
+        .text(`${b.nom || '?'} — ${l.case} — ${l.nb} don${l.nb > 1 ? 's' : ''} — ${fmtEuros(l.total)}`, left, doc.y, { width: LARGEUR_BENEF });
+      doc.font('Helvetica');
+      if (coords.length) {
+        if (doc.y + 14 > bottomLimit) doc.addPage();
+        doc.fontSize(8).fillColor(COL.muted).text(coords.join('   ·   '), left, doc.y, { width: LARGEUR_BENEF });
+      }
+      if (i < lignesBenef.length - 1) {
+        doc.moveDown(0.3);
+        if (doc.y + 4 > bottomLimit) doc.addPage();
+        doc.moveTo(left, doc.y).lineTo(left + LARGEUR_BENEF, doc.y).strokeColor(COL.border).lineWidth(0.5).stroke();
+        doc.moveDown(0.3);
+      }
     });
-    doc.x = left; doc.y = yFin2 + 12;
+    doc.x = left; doc.y += 16;
   }
 
   if (doc.y > bottomLimit - 20) doc.addPage();
