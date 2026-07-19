@@ -29,8 +29,49 @@ const app = express();
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
+// En-têtes de sécurité (faits main — pas de dépendance). CSP compatible avec l'app :
+// scripts uniquement externes (script-src 'self'), styles inline autorisés (style="" générés
+// par le JS + <style> de la page mentions légales), favicon en data: URI (img-src data:).
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy',
+    "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'");
+  next();
+});
+
 const upload = multer({ dest: store.UPLOAD_DIR, limits: { fileSize: 15 * 1024 * 1024 } });
-const toCents = (euros) => Math.round(parseFloat(String(euros).replace(',', '.')) * 100);
+// Montant € → centimes (entier ≥ 0) ; renvoie null si invalide (jamais de NaN en base).
+function montantCents(v) {
+  const n = parseFloat(String(v).replace(',', '.'));
+  if (!isFinite(n) || n < 0) return null;
+  return Math.round(n * 100);
+}
+const validDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !isNaN(new Date(s + 'T00:00:00').getTime());
+const CAT_CODES = new Set(fiscal.CATEGORIES.map((c) => c.code));
+const FREQUENCES = new Set(['mensuel', 'trimestriel', 'annuel']);
+
+// Anti-brute-force sur /login : fenêtre glissante par IP + verrouillage temporaire.
+// En LAN mono-foyer c'est surtout un garde-fou ; utile aussi contre un script mal réglé.
+const LOGIN_MAX = 8;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const loginAttempts = new Map(); // ip -> { count, first }
+function ipDe(req) { return req.ip || req.socket.remoteAddress || 'unknown'; }
+function loginThrottle(req, res, next) {
+  const rec = loginAttempts.get(ipDe(req));
+  if (rec && Date.now() - rec.first < LOGIN_WINDOW_MS && rec.count >= LOGIN_MAX) {
+    const reste = Math.ceil((LOGIN_WINDOW_MS - (Date.now() - rec.first)) / 60000);
+    return res.status(429).json({ error: `Trop de tentatives de connexion. Réessayez dans ~${reste} min.` });
+  }
+  next();
+}
+function noteLoginFail(req) {
+  const ip = ipDe(req), rec = loginAttempts.get(ip);
+  if (!rec || Date.now() - rec.first >= LOGIN_WINDOW_MS) loginAttempts.set(ip, { count: 1, first: Date.now() });
+  else rec.count++;
+}
+function noteLoginSuccess(req) { loginAttempts.delete(ipDe(req)); }
 
 // ---- Auth ---------------------------------------------------------------
 function setSession(res, identifiant) {
@@ -63,12 +104,14 @@ app.post('/api/setup', (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', loginThrottle, (req, res) => {
   const db = store.get();
   const { identifiant, password } = req.body || {};
   if (!db.utilisateur || db.utilisateur.identifiant !== String(identifiant || '').trim() || !bcrypt.compareSync(password || '', db.utilisateur.hash)) {
+    noteLoginFail(req);
     return res.status(401).json({ error: 'Identifiant ou mot de passe incorrect' });
   }
+  noteLoginSuccess(req);
   setSession(res, db.utilisateur.identifiant);
   res.json({ ok: true });
 });
@@ -96,14 +139,19 @@ api.post('/exercices', (req, res) => {
   const annee = parseInt(req.body.annee, 10);
   if (!annee || annee < 2000 || annee > 2100) return res.status(400).json({ error: 'Année invalide' });
   if (db.exercices.find((e) => e.annee === annee)) return res.status(400).json({ error: 'Exercice déjà existant' });
-  const ex = { annee, revenuImposable: req.body.revenuImposable ? toCents(req.body.revenuImposable) : null, statut: 'en_cours' };
+  let revenu = null;
+  if (req.body.revenuImposable) { revenu = montantCents(req.body.revenuImposable); if (revenu === null) return res.status(400).json({ error: 'Revenu imposable invalide' }); }
+  const ex = { annee, revenuImposable: revenu, statut: 'en_cours' };
   db.exercices.push(ex); store.save(); res.json(ex);
 });
 api.patch('/exercices/:annee', (req, res) => {
   const db = store.get();
   const ex = db.exercices.find((e) => e.annee === parseInt(req.params.annee, 10));
   if (!ex) return res.status(404).json({ error: 'Introuvable' });
-  if ('revenuImposable' in req.body) ex.revenuImposable = req.body.revenuImposable ? toCents(req.body.revenuImposable) : null;
+  if ('revenuImposable' in req.body) {
+    if (req.body.revenuImposable) { const r = montantCents(req.body.revenuImposable); if (r === null) return res.status(400).json({ error: 'Revenu imposable invalide' }); ex.revenuImposable = r; }
+    else ex.revenuImposable = null;
+  }
   if ('statut' in req.body) ex.statut = req.body.statut;
   store.save(); res.json(ex);
 });
@@ -114,6 +162,7 @@ api.post('/beneficiaires', (req, res) => {
   const db = store.get();
   const { nom, identifiant, categorie, habiliteRecu, adresse, telephone, siteWeb, email, notes } = req.body || {};
   if (!nom || !categorie) return res.status(400).json({ error: 'Nom et catégorie requis' });
+  if (!CAT_CODES.has(categorie)) return res.status(400).json({ error: 'Catégorie fiscale invalide' });
   const b = { id: store.uid(), nom: String(nom).trim(), identifiant: identifiant || '', categorie, habiliteRecu: !!habiliteRecu, adresse: adresse || '', telephone: telephone || '', siteWeb: siteWeb || '', email: email || '', notes: notes || '', indicateurSuivi: 'neutre', archive: false };
   db.beneficiaires.push(b); store.save(); res.json(b);
 });
@@ -121,6 +170,7 @@ api.patch('/beneficiaires/:id', (req, res) => {
   const db = store.get();
   const b = db.beneficiaires.find((x) => x.id === req.params.id);
   if (!b) return res.status(404).json({ error: 'Introuvable' });
+  if ('categorie' in req.body && !CAT_CODES.has(req.body.categorie)) return res.status(400).json({ error: 'Catégorie fiscale invalide' });
   for (const k of ['nom', 'identifiant', 'categorie', 'habiliteRecu', 'adresse', 'telephone', 'siteWeb', 'email', 'notes', 'indicateurSuivi', 'archive']) if (k in req.body) b[k] = req.body[k];
   store.save(); res.json(b);
 });
@@ -143,9 +193,13 @@ api.get('/dons', (req, res) => {
 api.post('/dons', (req, res) => {
   const db = store.get();
   const { beneficiaireId, date, montant, moyen, numeroRecu, note } = req.body || {};
-  if (!beneficiaireId || !date || !montant) return res.status(400).json({ error: 'Bénéficiaire, date et montant requis' });
+  if (!beneficiaireId || !date || montant == null) return res.status(400).json({ error: 'Bénéficiaire, date et montant requis' });
+  if (!validDate(date)) return res.status(400).json({ error: 'Date invalide (attendu AAAA-MM-JJ)' });
+  const cents = montantCents(montant);
+  if (cents === null || cents <= 0) return res.status(400).json({ error: 'Montant invalide' });
+  if (!db.beneficiaires.find((b) => b.id === beneficiaireId)) return res.status(400).json({ error: 'Bénéficiaire inconnu' });
   const annee = parseInt(date.slice(0, 4), 10);
-  const d = { id: store.uid(), annee, beneficiaireId, date, montant: toCents(montant), moyen: moyen || 'CB', numeroRecu: numeroRecu || '', note: note || '', recurrentId: null, justificatifs: [] };
+  const d = { id: store.uid(), annee, beneficiaireId, date, montant: cents, moyen: moyen || 'CB', numeroRecu: numeroRecu || '', note: note || '', recurrentId: null, justificatifs: [] };
   db.dons.push(d);
   if (!db.exercices.find((e) => e.annee === annee)) db.exercices.push({ annee, revenuImposable: null, statut: 'en_cours' });
   store.save(); res.json(d);
@@ -154,7 +208,9 @@ api.patch('/dons/:id', (req, res) => {
   const db = store.get();
   const d = db.dons.find((x) => x.id === req.params.id);
   if (!d) return res.status(404).json({ error: 'Introuvable' });
-  if ('montant' in req.body) d.montant = toCents(req.body.montant);
+  if ('montant' in req.body) { const c = montantCents(req.body.montant); if (c === null || c <= 0) return res.status(400).json({ error: 'Montant invalide' }); d.montant = c; }
+  if ('date' in req.body && !validDate(req.body.date)) return res.status(400).json({ error: 'Date invalide (attendu AAAA-MM-JJ)' });
+  if ('beneficiaireId' in req.body && !db.beneficiaires.find((b) => b.id === req.body.beneficiaireId)) return res.status(400).json({ error: 'Bénéficiaire inconnu' });
   for (const k of ['date', 'moyen', 'numeroRecu', 'note', 'beneficiaireId']) if (k in req.body) d[k] = req.body[k];
   if ('date' in req.body) d.annee = parseInt(d.date.slice(0, 4), 10);
   store.save(); res.json(d);
@@ -169,8 +225,15 @@ api.delete('/dons/:id', (req, res) => {
 api.post('/recurrents', (req, res) => {
   const db = store.get();
   const { beneficiaireId, montant, frequence, dateDebut, moyen, note, annee } = req.body || {};
-  if (!beneficiaireId || !montant || !frequence || !dateDebut || !annee) return res.status(400).json({ error: 'Champs requis manquants' });
-  const rec = { id: store.uid(), beneficiaireId, montant: toCents(montant), frequence, dateDebut, dateFin: null, moyen: moyen || 'Prélèvement', note: note || '', statut: 'actif' };
+  if (!beneficiaireId || montant == null || !frequence || !dateDebut || !annee) return res.status(400).json({ error: 'Champs requis manquants' });
+  if (!FREQUENCES.has(frequence)) return res.status(400).json({ error: 'Fréquence invalide' });
+  if (!validDate(dateDebut)) return res.status(400).json({ error: 'Date de début invalide (attendu AAAA-MM-JJ)' });
+  const cents = montantCents(montant);
+  if (cents === null || cents <= 0) return res.status(400).json({ error: 'Montant invalide' });
+  if (!db.beneficiaires.find((b) => b.id === beneficiaireId)) return res.status(400).json({ error: 'Bénéficiaire inconnu' });
+  const anneeInt = parseInt(annee, 10);
+  if (!anneeInt || anneeInt < 2000 || anneeInt > 2100) return res.status(400).json({ error: 'Année invalide' });
+  const rec = { id: store.uid(), beneficiaireId, montant: cents, frequence, dateDebut, dateFin: null, moyen: moyen || 'Prélèvement', note: note || '', statut: 'actif' };
   db.recurrents.push(rec);
   const pas = { mensuel: 1, trimestriel: 3, annuel: 12 }[frequence] || 1;
   const start = new Date(dateDebut + 'T00:00:00');
@@ -270,8 +333,14 @@ app.use('/api', api);
 
 // ---- IHM statique -------------------------------------------------------
 app.use(express.static(path.join(__dirname, 'public')));
-// Mentions légales : page publique (pas d'auth requise), URL propre sans .html
-app.get('/mentions-legales', (req, res) => res.sendFile(path.join(__dirname, 'public', 'mentions-legales.html')));
+// Mentions légales : page publique (pas d'auth requise), URL propre sans .html.
+// L'année du copyright est rendue côté serveur (placeholder) — pas de <script> inline,
+// pour rester compatible avec la CSP stricte (script-src 'self').
+app.get('/mentions-legales', (req, res) => {
+  const html = fs.readFileSync(path.join(__dirname, 'public', 'mentions-legales.html'), 'utf-8')
+    .replace(/\{\{ANNEE\}\}/g, String(new Date().getFullYear()));
+  res.type('html').send(html);
+});
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 8080;

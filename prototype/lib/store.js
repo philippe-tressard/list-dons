@@ -32,15 +32,40 @@ function load() {
     db = JSON.parse(JSON.stringify(EMPTY));
     save();
   } else {
-    db = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+    try {
+      db = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+    } catch (e) {
+      // db.json illisible/corrompu (ex. coupure de courant sur le RPi) : on tente le
+      // filet de sécurité .bak (dernière version saine conservée avant chaque écriture).
+      if (fs.existsSync(DB_FILE + '.bak')) {
+        console.error('db.json corrompu — restauration depuis .bak :', e.message);
+        db = JSON.parse(fs.readFileSync(DB_FILE + '.bak', 'utf-8'));
+        save(); // réécrit une base saine
+      } else {
+        throw e;
+      }
+    }
     for (const k of Object.keys(EMPTY)) if (!(k in db)) db[k] = JSON.parse(JSON.stringify(EMPTY[k]));
   }
   return db;
 }
 
+// Écriture atomique et durable : on écrit un fichier temporaire, on force sa synchronisation
+// disque (fsync), on conserve la version précédente en .bak, puis on remplace par rename
+// (atomique sur le même système de fichiers). Une coupure en cours d'écriture ne peut donc
+// plus laisser un db.json tronqué : soit l'ancien intact, soit le nouveau complet.
 function save() {
   ensureDirs();
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
+  const tmp = DB_FILE + '.tmp';
+  const fd = fs.openSync(tmp, 'w');
+  try {
+    fs.writeSync(fd, JSON.stringify(db, null, 2));
+    fs.fsyncSync(fd);
+  } finally {
+    fs.closeSync(fd);
+  }
+  try { if (fs.existsSync(DB_FILE)) fs.copyFileSync(DB_FILE, DB_FILE + '.bak'); } catch { /* filet best-effort */ }
+  fs.renameSync(tmp, DB_FILE);
 }
 
 function get() { return db || load(); }

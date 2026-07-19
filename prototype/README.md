@@ -21,6 +21,7 @@
 - **Récapitulatif des barèmes par exercice** (Paramètres) : règles réellement appliquées à chaque exercice et leur année source en cas d'héritage.
 - **Mode confidentialité (démo)** : anonymise bénéficiaires (`Bénéficiaire A/B/C…`) et masque (`*****`) tout montant saisi ou calculé, pour présenter l'app sans exposer de données réelles. Réversible.
 - **Pied de page** : copyright, licence, mentions légales (page publique dédiée).
+- **Robustesse (mise en production)** : **écriture atomique** de la base (fichier temporaire + `fsync` + `rename`) avec **filet `.bak`** anti-corruption (récupération automatique si `db.json` est illisible, ex. coupure de courant) ; **rate-limiting + verrouillage temporaire** de la connexion ; **en-têtes de sécurité** (CSP, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`) ; **validation serveur** stricte (montant, date, catégorie, fréquence, existence du bénéficiaire).
 
 ## Lancer
 
@@ -45,6 +46,7 @@ Auto-test sans dépendance : fixture de référence (specs §6.7) + isolation du
 
 ## Limites (assumées, prototype)
 
-- Persistance = fichier JSON (cible : SQLite). Hachage = bcrypt (cible : Argon2).
+- Persistance = fichier JSON, désormais **avec écriture atomique + filet `.bak`** (cible : SQLite — non requis tant que l'usage reste mono-foyer). Hachage = bcrypt (cible : Argon2).
 - Récurrence générée à la création pour l'année en cours (pas de planificateur).
-- Pas encore : OCR des reçus, export CSV/JSON (portabilité RGPD), HTTPS (à faire dans l'implémentation Rust).
+- **HTTPS (LAN)** : pas encore — prévu via **Caddy `tls internal`** (prochaine étape de durcissement). En attendant, l'accès reste en HTTP sur le LAN uniquement.
+- Pas encore : OCR des reçus, export CSV/JSON (portabilité RGPD).
