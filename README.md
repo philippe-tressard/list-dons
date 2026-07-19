@@ -7,13 +7,12 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/statut-MVP%20déployé-brightgreen.svg" alt="Statut : MVP déployé" />
-  <img src="https://img.shields.io/badge/MVP-Node%2FExpress-339933.svg" alt="MVP Node" />
-  <img src="https://img.shields.io/badge/cible-Rust%20%2B%20SvelteKit-000000.svg" alt="Implémentation cible : Rust + SvelteKit" />
+  <img src="https://img.shields.io/badge/stack-Node%2FExpress-339933.svg" alt="Stack Node/Express" />
 </p>
 
 ---
 
-> **Statut : MVP fonctionnel déployé et utilisé.** Le MVP Node/Express ([`prototype/`](prototype/)) implémente l'essentiel des spécifications et tourne en usage réel, auto-hébergé sur un réseau local. L'**implémentation cible** (Rust + SvelteKit + SQLite, voir [`specs/`](specs/)) n'a pas encore été commencée.
+> **Statut : MVP fonctionnel déployé et utilisé.** Le MVP Node/Express ([`prototype/`](prototype/)) implémente l'essentiel des spécifications et tourne en usage réel, auto-hébergé sur un réseau local.
 
 ## Objectif
 
@@ -34,16 +33,15 @@ Application **mono-foyer**, **auto-hébergée**, **accès local (LAN)**, **inter
 - **MVP fonctionnel** ([`prototype/`](prototype/), Node/Express + JS vanilla) : couvre l'authentification (dont le mot de passe oublié en réinitialisation locale), les exercices, les bénéficiaires, les dons (uniques/récurrents), les justificatifs, le moteur fiscal (barèmes par année avec héritage N ← N-1, plafond du revenu imposable), le rappel N-1, l'historique pluriannuel, le récapitulatif PDF (reçus annexés) et le mode confidentialité. **Interface responsive** : tableaux qui se transforment en cartes sur mobile, consultation d'un don/bénéficiaire au clic (fiche détail complète), saisie et édition par une même fenêtre modale. Détail complet : [`prototype/README.md`](prototype/README.md).
 - **Déployé** sur un Raspberry Pi du foyer, isolé d'une autre application co-hébergée sur la même machine — voir [`deploy/README.md`](deploy/README.md) pour les garanties d'isolation et la procédure.
 - **Durcissement (usage réel)** : écriture atomique de la base avec filet anti-corruption, rate-limiting de la connexion, en-têtes de sécurité (CSP…) et validation serveur. HTTPS LAN (Caddy) prévu à l'étape suivante.
-- **Implémentation cible** (Rust + Axum + SQLite + SvelteKit) : pas encore commencée. Le MVP existe car Rust et Docker n'étaient pas disponibles sur la machine de développement initiale.
 
 ## Stack
 
-| Composant | MVP (actuel) | Cible (spécifiée, pas commencée) |
-|---|---|---|
-| Backend | Node.js · Express | Rust · Axum · sqlx |
-| Persistance | Fichier JSON | SQLite |
-| Frontend | JS vanilla | SvelteKit · TypeScript |
-| Déploiement | Docker Compose | Docker Compose · Caddy |
+| Composant | Choix |
+|---|---|
+| Backend | Node.js · Express |
+| Persistance | Fichier JSON |
+| Frontend | JS vanilla |
+| Déploiement | Docker Compose |
 
 ## Spécifications
 
