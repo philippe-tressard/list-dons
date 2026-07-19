@@ -1,8 +1,8 @@
-# Prototype fonctionnel — List-dons (Node)
+# MVP fonctionnel — List-dons (Node)
 
-> ⚠️ **Prototype fonctionnel, déployé et en usage réel.** Il valide l'UX et le moteur fiscal en conditions réelles.
+> ⚠️ **MVP fonctionnel, déployé et en usage réel.** Il valide l'UX et le moteur fiscal en conditions réelles.
 > L'implémentation **cible** reste **Rust (Axum) + SvelteKit + SQLite**, conformément aux spécifications (`../SPECIFICATIONS.md`, `../specs/`).
-> Ce prototype a été fait sur une machine sans Rust ni Docker, pour livrer quelque chose de testable immédiatement — il a fini par devenir l'instance réellement utilisée.
+> Ce MVP a été fait sur une machine sans Rust ni Docker, pour livrer quelque chose de testable immédiatement — il a fini par devenir l'instance réellement utilisée.
 
 ## Ce qui fonctionne
 
@@ -44,7 +44,7 @@ node lib/fiscal.selftest.js
 
 Auto-test sans dépendance : fixture de référence (specs §6.7) + isolation du barème par année (un barème ajouté pour une année future n'affecte jamais les exercices antérieurs).
 
-## Limites (assumées, prototype)
+## Limites (assumées, MVP)
 
 - Persistance = fichier JSON, désormais **avec écriture atomique + filet `.bak`** (cible : SQLite — non requis tant que l'usage reste mono-foyer). Hachage = bcrypt (cible : Argon2).
 - Récurrence générée à la création pour l'année en cours (pas de planificateur).
