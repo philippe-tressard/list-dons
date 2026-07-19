@@ -8,13 +8,16 @@
 
 - **Authentification** mono-foyer (création du compte au 1er lancement, connexion, déconnexion, session cookie).
 - **Exercices** (années d'imposition) : création, sélection.
+- **Interface responsive** : sur mobile, les tableaux se replient en cartes empilées (libellé/valeur) ; en-têtes, formulaires et graphiques s'adaptent.
+- **Consultation au clic** : toucher un don ou un bénéficiaire ouvre une **fiche détail complète** (tout ce qui est saisi, pièces jointes) avec les actions Éditer / Supprimer.
+- **Saisie et édition factorisées** : l'ajout se fait par un **bouton « ＋ Ajouter… »** en tête de section, qui ouvre la **même fenêtre modale** que l'édition (un seul formulaire par entité — pas de zone de saisie permanente).
 - **Bénéficiaires** : référentiel réutilisable, création et **édition**, coordonnées optionnelles (SIREN/RNA, adresse, téléphone, site web, email), catégorie fiscale, **indicateur de suivi** (de confiance / neutre / à surveiller / à éviter).
 - **Dons** : uniques ou **récurrents** (mensuel/trimestriel/annuel → génération des versements rattachés à l'année) ; **édition** et suppression ; n° de reçu fiscal ; note/raison ; plusieurs dons uniques pour un même bénéficiaire sur un même exercice.
 - **Justificatifs** : attacher une pièce jointe **dès la saisie du don** (ou après, en édition) ; consulter/télécharger ; supprimer.
 - **Moteur fiscal** (art. 200 CGI) : réduction estimée, détail par régime, **cases 7UF / 7UD / 7UH**, **plafond du revenu imposable** (jauge sur le tableau de bord, saisie contextuelle, modification), report — **barèmes par année datés avec héritage N ← N-1** (jamais de taux codé en dur), vérifiés par un auto-test (`node lib/fiscal.selftest.js`).
 - **Rappel N-1** : colonne « montant N-1 » dans le tableau des dons, section « Non renouvelée » (tout l'historique, groupée par dernière année de don).
 - **Historique pluriannuel** : graphique en barres empilées par bénéficiaire (SVG, sans dépendance).
-- **Récapitulatif fiscal en PDF** : estimation, cases 2042 RICI, détail chronologique des dons, détail agrégé par bénéficiaire (avec coordonnées disponibles).
+- **Récapitulatif fiscal en PDF** : estimation, cases 2042 RICI, détail chronologique des dons, détail par bénéficiaire (même présentation de tableau, coordonnées disponibles), **sommaire des pièces jointes puis les reçus annexés** — images intégrées et **pages des reçus PDF réellement importées** (via `pdf-lib`).
 - **Récapitulatif des barèmes par exercice** (Paramètres) : règles réellement appliquées à chaque exercice et leur année source en cas d'héritage.
 - **Mode confidentialité (démo)** : anonymise bénéficiaires (`Bénéficiaire A/B/C…`) et masque (`*****`) tout montant saisi ou calculé, pour présenter l'app sans exposer de données réelles. Réversible.
 - **Pied de page** : copyright, licence, mentions légales (page publique dédiée).

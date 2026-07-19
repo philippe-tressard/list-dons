@@ -28,18 +28,37 @@ const fmt = (c) => (c / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2,
 const fmtDemo = (c) => (state.demo ? '*****' : fmt(c));
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const catLabel = (code) => (state.cats.find((c) => c.code === code) || {}).libelle || code;
+const MOYENS = ['CB', 'Virement', 'Chèque', 'Prélèvement', 'Espèces'];
+
+// Re-rendu de l'onglet courant (après enregistrement dans une modale).
+function refreshCurrent() { if (state.tab === 'benef') tabBenef(); else if (state.tab === 'params') tabParams(); else tabDashboard(); }
+
+// En-tête de carte : titre + zone d'actions (bouton d'ajout, PDF…), aligné et responsive.
+function cardHead(titleHtml, actionsHtml = '') {
+  return `<div class="card-head"><h2>${titleHtml}</h2><div class="card-head-actions">${actionsHtml}</div></div>`;
+}
 
 // Modale réutilisable : openModal(titre, htmlContenu) → renvoie l'élément .modal (avec .close câblé).
+// Le défilement du fond est verrouillé (classe `modal-open` sur <html>/<body>) : sans ça, sur
+// mobile la page derrière peut continuer à défiler sous l'overlay `position:fixed`, ce qui
+// provoque un « ghosting » (la modale repeinte à deux positions → texte superposé illisible).
 function openModal(titre, innerHtml) {
   closeModal();
   const back = document.createElement('div');
   back.className = 'modal-backdrop';
   back.innerHTML = `<div class="modal"><h2>${esc(titre)}<button class="close" type="button" aria-label="Fermer">×</button></h2><div class="modal-body">${innerHtml}</div></div>`;
   document.body.appendChild(back);
+  document.documentElement.classList.add('modal-open');
+  document.body.classList.add('modal-open');
   back.querySelector('.close').onclick = closeModal;
+  back.onclick = (e) => { if (e.target === back) closeModal(); };
   return back.querySelector('.modal');
 }
-function closeModal() { const m = $('.modal-backdrop'); if (m) m.remove(); }
+function closeModal() {
+  document.querySelectorAll('.modal-backdrop').forEach((m) => m.remove());
+  document.documentElement.classList.remove('modal-open');
+  document.body.classList.remove('modal-open');
+}
 
 // ---------- Mode démo (confidentialité) ----------
 // Anonymise bénéficiaires (nom/coordonnées) à l'écran ET masque tout montant saisi ou calculé
@@ -59,7 +78,7 @@ function lettreDemo(i) {
 }
 function anonymiserBeneficiaire(b, map) {
   if (!b) return b;
-  return { ...b, nom: map[b.id] || 'Bénéficiaire ?', identifiant: '', adresse: '', telephone: '', siteWeb: '', email: '' };
+  return { ...b, nom: map[b.id] || 'Bénéficiaire ?', identifiant: '', adresse: '', telephone: '', siteWeb: '', email: '', notes: '' };
 }
 let demoMapCache = null;
 // Lettre stable par bénéficiaire (A, B, C… puis AA, AB…), basée sur le référentiel complet
@@ -135,7 +154,7 @@ async function renderMain() {
   app.innerHTML = `
     <header class="topbar">
       <h1>🎗️ List-dons</h1>
-      <label style="margin:0;color:#fff">Exercice&nbsp;
+      <label class="year-pick">Exercice&nbsp;
         <select id="yearsel">${years.map((y) => `<option ${y === state.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
       </label>
       <button class="btn btn-sm btn-outline" id="addyear" style="background:#fff">+ Année</button>
@@ -219,79 +238,37 @@ async function tabDashboard() {
   const totalNonRenouveles = anneesNonRenouvelees.reduce((s, a) => s + nonRenouveles[a].length, 0);
   const casesHtml = Object.entries(est.cases).filter(([, v]) => v > 0)
     .map(([k, v]) => `<span class="badge badge-${k.slice(1).toLowerCase()}">${k} : ${fmtDemo(v)}</span>`).join(' ') || '<span class="muted">—</span>';
+  const pdfBtn = state.demo
+    ? '<span class="btn btn-sm btn-outline" style="opacity:.5;cursor:not-allowed" title="Désactivé en mode démo (le PDF contient toujours les données réelles)">📄 PDF récapitulatif</span>'
+    : `<a class="btn btn-sm btn-outline" href="/api/exercices/${state.year}/pdf" target="_blank" rel="noopener">📄 PDF récapitulatif</a>`;
+  const addDonBtn = state.demo ? '' : '<button class="btn btn-sm btn-primary" id="adddon">＋ Ajouter un don</button>';
   c.innerHTML = `
     <div class="card">
-      <h2 style="overflow:auto">Réduction d'impôt estimée ${state.year}
-        ${state.demo
-          ? '<span class="btn btn-sm btn-outline" style="float:right;font-family:\'Segoe UI\',system-ui,sans-serif;opacity:.5;cursor:not-allowed" title="Désactivé en mode démo (le PDF contient toujours les données réelles)">📄 PDF récapitulatif</span>'
-          : `<a class="btn btn-sm btn-outline" style="float:right;font-family:'Segoe UI',system-ui,sans-serif" href="/api/exercices/${state.year}/pdf" target="_blank" rel="noopener">📄 PDF récapitulatif</a>`}
-      </h2>
+      ${cardHead(`Réduction d'impôt estimée ${state.year}`, pdfBtn)}
       <div class="grid">
         <div class="stat"><div class="value">${fmtDemo(est.reductionTotale)}</div><div class="label">Réduction estimée</div></div>
         <div class="stat"><div class="value">${fmtDemo(est.totalDonne)}</div><div class="label">Total donné</div></div>
       </div>
       <p style="margin:.75rem 0 .25rem"><strong>Cases 2042 RICI :</strong> ${casesHtml}</p>
       ${blocPlafond20(est, ex)}
-      ${est.detail.length ? `<table><thead><tr><th>Régime</th><th>Taux</th><th>Base</th><th>Réduction</th><th>Case</th></tr></thead><tbody>
-        ${est.detail.map((d) => `<tr><td>${esc(d.libelle)}</td><td>${Math.round(d.taux * 100)} %</td><td>${fmtDemo(d.base)}</td><td>${fmtDemo(d.reduction)}</td><td>${d.case}</td></tr>`).join('')}
+      ${est.detail.length ? `<table class="responsive"><thead><tr><th>Régime</th><th>Taux</th><th>Base</th><th>Réduction</th><th>Case</th></tr></thead><tbody>
+        ${est.detail.map((d) => `<tr><td data-label="Régime">${esc(d.libelle)}</td><td data-label="Taux">${Math.round(d.taux * 100)} %</td><td data-label="Base">${fmtDemo(d.base)}</td><td data-label="Réduction">${fmtDemo(d.reduction)}</td><td data-label="Case">${d.case}</td></tr>`).join('')}
       </tbody></table>` : '<p class="muted">Aucun don saisi pour cet exercice.</p>'}
     </div>
 
     <div class="card">
-      <h2>Ajouter un don</h2>
-      ${state.demo ? '<p class="muted">🕶️ Mode démo actif : saisie désactivée pour protéger vos données réelles.</p>' : `
-      <div id="donerr"></div>
-      <form id="donform">
-        <div class="row">
-          <div>
-            <label>Bénéficiaire *</label>
-            <select id="benefsel" required>
-              <option value="">— choisir —</option>
-              ${benefs.map((b) => `<option value="${b.id}">${esc(b.nom)} · ${esc(catLabel(b.categorie))}</option>`).join('')}
-              <option value="__new">+ Créer un bénéficiaire…</option>
-            </select>
-          </div>
-          <div><label>Montant (€) *</label><input id="montant" type="number" step="0.01" min="0" required /></div>
-        </div>
-        <div id="newbenef" class="hidden card" style="background:var(--bg);margin:.5rem 0">
-          <div class="row">
-            <div><label>Nom du bénéficiaire *</label><input id="nb_nom" /></div>
-            <div><label>Catégorie fiscale *</label><select id="nb_cat">${state.cats.map((c) => `<option value="${c.code}">${esc(c.libelle)}</option>`).join('')}</select></div>
-          </div>
-          <div><label>SIREN / RNA (facultatif)</label><input id="nb_id" /></div>
-        </div>
-        <div class="row">
-          <div><label>Date *</label><input id="date" type="date" value="${state.year}-01-01" required /></div>
-          <div><label>Fréquence</label>
-            <select id="freq"><option value="unique">Unique</option><option value="mensuel">Mensuel</option><option value="trimestriel">Trimestriel</option><option value="annuel">Annuel</option></select>
-          </div>
-          <div><label>Moyen de paiement</label>
-            <select id="moyen"><option>CB</option><option>Virement</option><option>Chèque</option><option>Prélèvement</option><option>Espèces</option></select>
-          </div>
-        </div>
-        <div class="row">
-          <div><label>N° de reçu fiscal (facultatif)</label><input id="numeroRecu" /></div>
-          <div id="pjwrap"><label>Pièce jointe / reçu (facultatif)</label><input id="pj" type="file" accept=".pdf,.jpg,.jpeg,.png" /></div>
-        </div>
-        <label>Note / raison du don (facultatif)</label><input id="note" />
-        <div class="form-actions"><button class="btn btn-primary" type="submit">Enregistrer</button></div>
-      </form>`}
-    </div>
-
-    <div class="card">
-      <h2>Dons ${state.year} <span class="muted">(${dons.length})</span></h2>
-      ${dons.length ? `<table><thead><tr><th>Date</th><th>Bénéficiaire</th><th>Montant</th><th>N-1</th><th>Case</th><th>N° reçu</th><th>PJ</th><th></th></tr></thead><tbody>
-        ${dons.map((d) => `<tr>
-          <td>${d.date}</td>
-          <td>${esc(d.beneficiaire?.nom || '?')}${d.recurrentId ? ' 🔁' : ''}</td>
-          <td>${fmtDemo(d.montant)}</td>
-          <td class="muted" title="Montant versé à ce bénéficiaire en ${state.year - 1}">${montantN1Par[d.beneficiaireId] ? fmtDemo(montantN1Par[d.beneficiaireId]) : '—'}</td>
-          <td>${caseBadge(d.beneficiaire?.categorie)}</td>
-          <td>${d.numeroRecu ? esc(d.numeroRecu) : '<span class="muted">—</span>'}</td>
-          <td>${d.justificatifs.length ? '📎 ' + d.justificatifs.length : '<span class="muted">—</span>'}</td>
-          <td style="white-space:nowrap">${state.demo ? '' : `<button class="btn-link" data-edit="${d.id}">✏️</button> <button class="btn-danger" data-del="${d.id}">🗑️</button>`}</td>
+      ${cardHead(`Dons ${state.year} <span class="muted">(${dons.length})</span>`, addDonBtn)}
+      ${dons.length ? `<table class="responsive rows"><thead><tr><th>Date</th><th>Bénéficiaire</th><th>Montant</th><th>N-1</th><th>Case</th><th>N° reçu</th><th>PJ</th></tr></thead><tbody>
+        ${dons.map((d) => `<tr class="${state.demo ? '' : 'clickable-row'}" data-don="${d.id}">
+          <td data-label="Date">${d.date}</td>
+          <td data-label="Bénéficiaire">${esc(d.beneficiaire?.nom || '?')}${d.recurrentId ? ' 🔁' : ''}</td>
+          <td data-label="Montant">${fmtDemo(d.montant)}</td>
+          <td data-label="N-1" class="muted" title="Montant versé à ce bénéficiaire en ${state.year - 1}">${montantN1Par[d.beneficiaireId] ? fmtDemo(montantN1Par[d.beneficiaireId]) : '—'}</td>
+          <td data-label="Case">${caseBadge(d.beneficiaire?.categorie)}</td>
+          <td data-label="N° reçu">${d.numeroRecu ? esc(d.numeroRecu) : '<span class="muted">—</span>'}</td>
+          <td data-label="PJ">${d.justificatifs.length ? '📎 ' + d.justificatifs.length : '<span class="muted">—</span>'}</td>
         </tr>`).join('')}
-      </tbody></table>` : '<p class="muted">Aucun don.</p>'}
+      </tbody></table>${state.demo ? '' : '<p class="muted hint-click">Touchez un don pour voir le détail complet et le modifier.</p>'}` : '<p class="muted">Aucun don. Utilisez « ＋ Ajouter un don ».</p>'}
       ${totalNonRenouveles ? `
       <div class="nonrenew">
         <h3>↩️ Non renouvelée <span class="muted">(${totalNonRenouveles})</span></h3>
@@ -323,96 +300,156 @@ async function tabDashboard() {
     };
     const btnEditRev = $('#editrevenu');
     if (btnEditRev) btnEditRev.onclick = () => $('#revenuEditWrap').classList.toggle('hidden');
-    $('#benefsel').onchange = (e) => $('#newbenef').classList.toggle('hidden', e.target.value !== '__new');
-    $('#freq').onchange = (e) => $('#pjwrap').classList.toggle('hidden', e.target.value !== 'unique');
-    $('#donform').onsubmit = async (e) => {
-      e.preventDefault();
-      try {
-        let benefId = $('#benefsel').value;
-        if (benefId === '__new') {
-          if (!$('#nb_nom').value) throw new Error('Nom du bénéficiaire requis');
-          const nb = await api('POST', '/beneficiaires', { nom: $('#nb_nom').value, categorie: $('#nb_cat').value, identifiant: $('#nb_id').value });
-          demoMapCache = null;
-          benefId = nb.id;
-        }
-        if (!benefId) throw new Error('Choisissez un bénéficiaire');
-        const freq = $('#freq').value;
-        if (freq === 'unique') {
-          const d = await api('POST', '/dons', { beneficiaireId: benefId, date: $('#date').value, montant: $('#montant').value, moyen: $('#moyen').value, numeroRecu: $('#numeroRecu').value, note: $('#note').value });
-          const fichier = $('#pj').files[0];
-          if (fichier) {
-            const fd = new FormData(); fd.append('fichier', fichier);
-            await api('POST', '/dons/' + d.id + '/justificatifs', fd, true);
-          }
-        } else {
-          const r = await api('POST', '/recurrents', { beneficiaireId: benefId, montant: $('#montant').value, frequence: freq, dateDebut: $('#date').value, moyen: $('#moyen').value, note: $('#note').value, annee: state.year });
-          alert(r.versementsGeneres + ' versement(s) généré(s) pour ' + state.year + '.');
-        }
-        tabDashboard();
-      } catch (err) { $('#donerr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
-    };
-    c.querySelectorAll('[data-del]').forEach((b) => b.onclick = async () => { if (confirm('Supprimer ce don ?')) { await api('DELETE', '/dons/' + b.dataset.del); tabDashboard(); } });
-    c.querySelectorAll('[data-edit]').forEach((b) => b.onclick = () => editDon(dons.find((d) => d.id === b.dataset.edit), benefs));
+    $('#adddon').onclick = () => donModal(null, benefs);
+    c.querySelectorAll('tr[data-don]').forEach((tr) => tr.onclick = (e) => {
+      if (e.target.closest('a,button,select,input,label')) return;
+      const don = dons.find((d) => d.id === tr.dataset.don);
+      if (don) donDetail(don, benefs, montantN1Par[don.beneficiaireId]);
+    });
   }
 }
 
-// Édition d'un don existant (champs + n° de reçu + pièces jointes)
-function editDon(don, benefs) {
-  const attachHtml = (d) => d.justificatifs.length
-    ? `<ul class="attach-list">${d.justificatifs.map((j) => `<li><a href="/api/justificatifs/${d.id}/${j.id}" target="_blank">${esc(j.nom)}</a><button type="button" class="btn-danger" data-rmj="${j.id}">🗑️</button></li>`).join('')}</ul>`
+// ---------- Détail d'un don (lecture seule + actions) ----------
+function donDetail(don, benefs, montantN1) {
+  const b = don.beneficiaire || {};
+  const lignes = [
+    ['Bénéficiaire', esc(b.nom || '?') + (don.recurrentId ? ' 🔁 <span class="muted">(don récurrent)</span>' : '')],
+    ['Catégorie fiscale', `${esc(catLabel(b.categorie))} ${caseBadge(b.categorie)}`],
+    ['Montant', fmt(don.montant)],
+    ['Date de versement', esc(don.date)],
+    ['Moyen de paiement', esc(don.moyen || '—')],
+    ['N° de reçu fiscal', don.numeroRecu ? esc(don.numeroRecu) : '<span class="muted">—</span>'],
+    montantN1 ? [`Versé à ce bénéficiaire en ${state.year - 1}`, fmt(montantN1)] : null,
+    ['Note / raison', don.note ? esc(don.note) : '<span class="muted">—</span>'],
+  ].filter(Boolean);
+  const attach = don.justificatifs.length
+    ? `<ul class="attach-list">${don.justificatifs.map((j) => `<li><a href="/api/justificatifs/${don.id}/${j.id}" target="_blank">📎 ${esc(j.nom)}</a></li>`).join('')}</ul>`
     : '<p class="muted">Aucune pièce jointe.</p>';
-  const m = openModal('Éditer le don', `
-    <div id="edonerr"></div>
-    <form id="edonform">
-      <div class="row">
-        <div><label>Bénéficiaire *</label>
-          <select id="e_benef">${benefs.map((b) => `<option value="${b.id}" ${b.id === don.beneficiaireId ? 'selected' : ''}>${esc(b.nom)} · ${esc(catLabel(b.categorie))}</option>`).join('')}</select>
-        </div>
-        <div><label>Montant (€) *</label><input id="e_montant" type="number" step="0.01" min="0" value="${(don.montant / 100).toFixed(2)}" required /></div>
-      </div>
-      <div class="row">
-        <div><label>Date *</label><input id="e_date" type="date" value="${esc(don.date)}" required /></div>
-        <div><label>Moyen de paiement</label>
-          <select id="e_moyen">${['CB', 'Virement', 'Chèque', 'Prélèvement', 'Espèces'].map((o) => `<option ${o === don.moyen ? 'selected' : ''}>${o}</option>`).join('')}</select>
-        </div>
-      </div>
-      <div class="row">
-        <div><label>N° de reçu fiscal (facultatif)</label><input id="e_recu" value="${esc(don.numeroRecu)}" /></div>
-        <div><label>Note / raison du don (facultatif)</label><input id="e_note" value="${esc(don.note)}" /></div>
-      </div>
-      <div class="form-actions"><button class="btn btn-primary" type="submit">Enregistrer</button></div>
-    </form>
-    <h3 style="font-size:1rem;margin:.5rem 0 .2rem">Reçu fiscal / pièces jointes</h3>
-    <div id="e_attach">${attachHtml(don)}</div>
-    <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-block;margin-top:.4rem">＋ Ajouter une pièce jointe<input type="file" id="e_upl" style="display:none"></label>`);
-
-  const refreshAttach = async () => {
-    const fresh = (await api('GET', '/dons?annee=' + state.year)).find((x) => x.id === don.id);
-    don.justificatifs = fresh ? fresh.justificatifs : [];
-    m.querySelector('#e_attach').innerHTML = attachHtml(don);
-    wireAttach();
-  };
-  const wireAttach = () => m.querySelectorAll('[data-rmj]').forEach((b) => b.onclick = async () => {
-    if (!confirm('Supprimer cette pièce jointe ?')) return;
-    await api('DELETE', '/dons/' + don.id + '/justificatifs/' + b.dataset.rmj); await refreshAttach();
-  });
-  wireAttach();
-  m.querySelector('#e_upl').onchange = async (e) => {
-    const fd = new FormData(); fd.append('fichier', e.target.files[0]);
-    await api('POST', '/dons/' + don.id + '/justificatifs', fd, true); await refreshAttach();
-  };
-  m.querySelector('#edonform').onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await api('PATCH', '/dons/' + don.id, {
-        beneficiaireId: m.querySelector('#e_benef').value, date: m.querySelector('#e_date').value,
-        montant: m.querySelector('#e_montant').value, moyen: m.querySelector('#e_moyen').value,
-        numeroRecu: m.querySelector('#e_recu').value, note: m.querySelector('#e_note').value,
-      });
-      closeModal(); tabDashboard();
-    } catch (err) { m.querySelector('#edonerr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
+  const m = openModal('Détail du don', `
+    <dl class="detail-list">${lignes.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+    <h3 class="detail-h3">Reçu fiscal / pièces jointes</h3>${attach}
+    <div class="form-actions">
+      <button class="btn btn-sm btn-danger-outline" id="dd_del">🗑️ Supprimer</button>
+      <button class="btn btn-sm btn-primary" id="dd_edit">✏️ Éditer</button>
+    </div>`);
+  m.querySelector('#dd_edit').onclick = () => donModal(don, benefs);
+  m.querySelector('#dd_del').onclick = async () => {
+    if (!confirm('Supprimer ce don ?')) return;
+    await api('DELETE', '/dons/' + don.id); closeModal(); tabDashboard();
   };
 }
+
+// ---------- Formulaire don (création ET édition, factorisé) ----------
+// don === null → création (fréquence + création de bénéficiaire en ligne + PJ à la volée).
+// don fourni  → édition (+ gestion complète des pièces jointes existantes).
+function donModal(don, benefs) {
+  const isEdit = !!don;
+  const d = don || {};
+  const optCat = state.cats.map((c) => `<option value="${c.code}">${esc(c.libelle)}</option>`).join('');
+  const optMoyen = MOYENS.map((o) => `<option ${o === d.moyen ? 'selected' : ''}>${o}</option>`).join('');
+  const body = `
+    <div id="donerr"></div>
+    <form id="donform">
+      <div class="row">
+        <div><label>Bénéficiaire *</label>
+          <select id="benefsel" required>
+            ${isEdit ? '' : '<option value="">— choisir —</option>'}
+            ${benefs.map((b) => `<option value="${b.id}" ${b.id === d.beneficiaireId ? 'selected' : ''}>${esc(b.nom)} · ${esc(catLabel(b.categorie))}</option>`).join('')}
+            <option value="__new">+ Créer un bénéficiaire…</option>
+          </select>
+        </div>
+        <div><label>Montant (€) *</label><input id="montant" type="number" step="0.01" min="0" value="${isEdit ? (d.montant / 100).toFixed(2) : ''}" required /></div>
+      </div>
+      <div id="newbenef" class="hidden card" style="background:var(--bg);margin:.5rem 0">
+        <div class="row">
+          <div><label>Nom du bénéficiaire *</label><input id="nb_nom" /></div>
+          <div><label>Catégorie fiscale *</label><select id="nb_cat">${optCat}</select></div>
+        </div>
+        <div><label>SIREN / RNA (facultatif)</label><input id="nb_id" /></div>
+      </div>
+      <div class="row">
+        <div><label>Date *</label><input id="date" type="date" value="${isEdit ? esc(d.date) : state.year + '-01-01'}" required /></div>
+        ${isEdit ? '' : `<div><label>Fréquence</label>
+          <select id="freq"><option value="unique">Unique</option><option value="mensuel">Mensuel</option><option value="trimestriel">Trimestriel</option><option value="annuel">Annuel</option></select>
+        </div>`}
+        <div><label>Moyen de paiement</label><select id="moyen">${optMoyen}</select></div>
+      </div>
+      <div class="row">
+        <div><label>N° de reçu fiscal (facultatif)</label><input id="numeroRecu" value="${esc(d.numeroRecu)}" /></div>
+        ${isEdit
+          ? `<div><label>Note / raison du don (facultatif)</label><input id="note" value="${esc(d.note)}" /></div>`
+          : `<div id="pjwrap"><label>Pièce jointe / reçu (facultatif)</label><input id="pj" type="file" accept=".pdf,.jpg,.jpeg,.png" /></div>`}
+      </div>
+      ${isEdit ? '' : '<label>Note / raison du don (facultatif)</label><input id="note" />'}
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Enregistrer</button></div>
+    </form>
+    ${isEdit ? `
+      <h3 class="detail-h3">Reçu fiscal / pièces jointes</h3>
+      <div id="e_attach"></div>
+      <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-block;margin-top:.4rem">＋ Ajouter une pièce jointe<input type="file" id="e_upl" style="display:none"></label>` : ''}`;
+  const m = openModal(isEdit ? 'Éditer le don' : 'Ajouter un don', body);
+
+  m.querySelector('#benefsel').onchange = (e) => m.querySelector('#newbenef').classList.toggle('hidden', e.target.value !== '__new');
+  const freqSel = m.querySelector('#freq');
+  if (freqSel) freqSel.onchange = (e) => m.querySelector('#pjwrap').classList.toggle('hidden', e.target.value !== 'unique');
+  if (isEdit) wireAttachments(m, don);
+
+  m.querySelector('#donform').onsubmit = async (e) => {
+    e.preventDefault();
+    const errBox = m.querySelector('#donerr');
+    try {
+      let benefId = m.querySelector('#benefsel').value;
+      if (benefId === '__new') {
+        if (!m.querySelector('#nb_nom').value) throw new Error('Nom du bénéficiaire requis');
+        const nb = await api('POST', '/beneficiaires', { nom: m.querySelector('#nb_nom').value, categorie: m.querySelector('#nb_cat').value, identifiant: m.querySelector('#nb_id').value });
+        demoMapCache = null; benefId = nb.id;
+      }
+      if (!benefId) throw new Error('Choisissez un bénéficiaire');
+      const commun = {
+        beneficiaireId: benefId, date: m.querySelector('#date').value, montant: m.querySelector('#montant').value,
+        moyen: m.querySelector('#moyen').value, numeroRecu: m.querySelector('#numeroRecu').value, note: m.querySelector('#note').value,
+      };
+      if (isEdit) {
+        await api('PATCH', '/dons/' + don.id, commun);
+      } else {
+        const freq = m.querySelector('#freq').value;
+        if (freq === 'unique') {
+          const created = await api('POST', '/dons', commun);
+          const fichier = m.querySelector('#pj').files[0];
+          if (fichier) { const fd = new FormData(); fd.append('fichier', fichier); await api('POST', '/dons/' + created.id + '/justificatifs', fd, true); }
+        } else {
+          const r = await api('POST', '/recurrents', { beneficiaireId: benefId, montant: commun.montant, frequence: freq, dateDebut: commun.date, moyen: commun.moyen, note: commun.note, annee: state.year });
+          alert(r.versementsGeneres + ' versement(s) généré(s) pour ' + state.year + '.');
+        }
+      }
+      closeModal(); tabDashboard();
+    } catch (err) { errBox.innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
+  };
+}
+
+// Gestion des pièces jointes d'un don dans une modale d'édition (liste + ajout + suppression).
+function wireAttachments(m, don) {
+  const attachHtml = () => don.justificatifs.length
+    ? `<ul class="attach-list">${don.justificatifs.map((j) => `<li><a href="/api/justificatifs/${don.id}/${j.id}" target="_blank">${esc(j.nom)}</a><button type="button" class="btn-danger" data-rmj="${j.id}">🗑️</button></li>`).join('')}</ul>`
+    : '<p class="muted">Aucune pièce jointe.</p>';
+  const refresh = async () => {
+    const fresh = (await api('GET', '/dons?annee=' + state.year)).find((x) => x.id === don.id);
+    don.justificatifs = fresh ? fresh.justificatifs : [];
+    m.querySelector('#e_attach').innerHTML = attachHtml();
+    wireRm();
+  };
+  const wireRm = () => m.querySelectorAll('[data-rmj]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Supprimer cette pièce jointe ?')) return;
+    await api('DELETE', '/dons/' + don.id + '/justificatifs/' + b.dataset.rmj); await refresh();
+  });
+  m.querySelector('#e_attach').innerHTML = attachHtml();
+  wireRm();
+  m.querySelector('#e_upl').onchange = async (e) => {
+    const fd = new FormData(); fd.append('fichier', e.target.files[0]);
+    await api('POST', '/dons/' + don.id + '/justificatifs', fd, true); await refresh();
+  };
+}
+
 // Bénéficiaires n'ayant pas (encore) donné en anneeCourante mais ayant donné avant,
 // groupés par leur dernière année de don (clé = année).
 function groupesNonRenouveles(tousLesDons, anneeCourante) {
@@ -479,7 +516,7 @@ function graphiqueHistorique(tousLesDons) {
   const legende = legendeItems.map((id, i) => `<span class="chart-legend-item"><i style="background:${couleurBenef(i)}"></i>${esc(nomParBenef[id])} <span class="muted">(${fmt(totalParBenef[id])})</span></span>`).join('')
     + (reste > 0 ? `<span class="chart-legend-item muted">+ ${reste} autre${reste > 1 ? 's' : ''}</span>` : '');
 
-  return `<svg viewBox="0 0 ${svgW} ${svgH}" class="chart-svg">${grille}${barres}</svg><div class="chart-legend">${legende}</div>`;
+  return `<div class="chart-scroll"><svg viewBox="0 0 ${svgW} ${svgH}" class="chart-svg">${grille}${barres}</svg></div><div class="chart-legend">${legende}</div>`;
 }
 function caseBadge(cat) {
   const map = { ir_general: ['7UF', 'uf'], ir_coluche: ['7UD', 'ud'], ir_partis: ['7UH', 'uh'] };
@@ -503,51 +540,27 @@ async function tabBenef() {
   const benefsR = await api('GET', '/beneficiaires?all=1');
   const demoMap = state.demo ? await getDemoMap() : null;
   const benefs = state.demo ? benefsR.map((b) => anonymiserBeneficiaire(b, demoMap)) : benefsR;
+  const addBtn = state.demo ? '' : '<button class="btn btn-sm btn-primary" id="addbenef">＋ Ajouter un bénéficiaire</button>';
   c.innerHTML = `
     <div class="card">
-      <h2>Nouveau bénéficiaire</h2>
-      ${state.demo ? '<p class="muted">🕶️ Mode démo actif : saisie désactivée pour protéger vos données réelles.</p>' : `
-      <form id="bform">
-        <div class="row">
-          <div><label>Nom *</label><input id="b_nom" required /></div>
-          <div><label>Catégorie fiscale *</label><select id="b_cat">${state.cats.map((c) => `<option value="${c.code}">${esc(c.libelle)}</option>`).join('')}</select></div>
-        </div>
-        <div class="row">
-          <div><label>SIREN / RNA (facultatif)</label><input id="b_id" /></div>
-          <div><label>Habilité à délivrer des reçus</label><select id="b_hab"><option value="true">Oui</option><option value="false">Non</option></select></div>
-        </div>
-        <div class="row">
-          <div><label>Adresse (facultatif)</label><input id="b_adr" /></div>
-          <div><label>Téléphone (facultatif)</label><input id="b_tel" type="tel" /></div>
-        </div>
-        <div class="row">
-          <div><label>Site web (facultatif)</label><input id="b_web" type="url" placeholder="https://…" /></div>
-          <div><label>Email (facultatif)</label><input id="b_email" type="email" /></div>
-        </div>
-        <div class="form-actions"><button class="btn btn-primary">Ajouter</button></div>
-      </form>`}
-    </div>
-    <div class="card">
-      <h2>Référentiel <span class="muted">(${benefs.length})</span></h2>
-      ${benefs.length ? `<table><thead><tr><th>Nom</th><th>Catégorie</th><th>SIREN/RNA</th><th>Contact</th><th>Suivi</th><th></th></tr></thead><tbody>
-        ${benefs.map((b) => `<tr><td>${esc(b.nom)}${b.archive ? ' <span class="muted">(archivé)</span>' : ''}</td><td>${esc(catLabel(b.categorie))}</td><td>${esc(b.identifiant) || '—'}</td>
-          <td>${contactCell(b)}</td>
-          <td>${state.demo ? suiviBadge(b.indicateurSuivi) : `<select data-suivi="${b.id}">${Object.entries(SUIVI).map(([code, s]) => `<option value="${code}" ${b.indicateurSuivi === code ? 'selected' : ''}>${s.icon} ${s.label}</option>`).join('')}</select>`}</td>
-          <td>${state.demo ? '' : `<button class="btn-link" data-editb="${b.id}">✏️</button>`}</td></tr>`).join('')}
-      </tbody></table>` : '<p class="muted">Aucun bénéficiaire.</p>'}
+      ${cardHead(`Référentiel <span class="muted">(${benefs.length})</span>`, addBtn)}
+      ${benefs.length ? `<table class="responsive rows"><thead><tr><th>Nom</th><th>Catégorie</th><th>SIREN/RNA</th><th>Contact</th><th>Suivi</th></tr></thead><tbody>
+        ${benefs.map((b) => `<tr class="${state.demo ? '' : 'clickable-row'}" data-benef="${b.id}">
+          <td data-label="Nom">${esc(b.nom)}${b.archive ? ' <span class="muted">(archivé)</span>' : ''}</td>
+          <td data-label="Catégorie">${esc(catLabel(b.categorie))}</td>
+          <td data-label="SIREN/RNA">${esc(b.identifiant) || '<span class="muted">—</span>'}</td>
+          <td data-label="Contact">${contactCell(b)}</td>
+          <td data-label="Suivi">${suiviBadge(b.indicateurSuivi)}</td>
+        </tr>`).join('')}
+      </tbody></table>${state.demo ? '' : '<p class="muted hint-click">Touchez un bénéficiaire pour voir sa fiche complète et la modifier.</p>'}` : '<p class="muted">Aucun bénéficiaire. Utilisez « ＋ Ajouter un bénéficiaire ».</p>'}
     </div>`;
   if (!state.demo) {
-    $('#bform').onsubmit = async (e) => {
-      e.preventDefault();
-      try {
-        await api('POST', '/beneficiaires', { nom: $('#b_nom').value, categorie: $('#b_cat').value, identifiant: $('#b_id').value, habiliteRecu: $('#b_hab').value === 'true',
-          adresse: $('#b_adr').value, telephone: $('#b_tel').value, siteWeb: $('#b_web').value, email: $('#b_email').value });
-        demoMapCache = null;
-        tabBenef();
-      } catch (err) { alert(err.message); }
-    };
-    c.querySelectorAll('[data-suivi]').forEach((s) => s.onchange = async () => { await api('PATCH', '/beneficiaires/' + s.dataset.suivi, { indicateurSuivi: s.value }); });
-    c.querySelectorAll('[data-editb]').forEach((b) => b.onclick = () => editBenef(benefs.find((x) => x.id === b.dataset.editb)));
+    $('#addbenef').onclick = () => benefModal(null);
+    c.querySelectorAll('tr[data-benef]').forEach((tr) => tr.onclick = (e) => {
+      if (e.target.closest('a,button,select,input,label')) return;
+      const b = benefs.find((x) => x.id === tr.dataset.benef);
+      if (b) benefDetail(b);
+    });
   }
 }
 function contactCell(b) {
@@ -559,45 +572,76 @@ function contactCell(b) {
   return parts.length ? parts.join(' ') : '<span class="muted">—</span>';
 }
 
-// Édition d'un bénéficiaire existant
-function editBenef(b) {
-  const m = openModal('Éditer le bénéficiaire', `
-    <div id="ebeneferr"></div>
-    <form id="ebform">
+// ---------- Détail d'un bénéficiaire (lecture seule + action Éditer) ----------
+function benefDetail(b) {
+  const lignes = [
+    ['Catégorie fiscale', `${esc(catLabel(b.categorie))} ${caseBadge(b.categorie)}`],
+    ['SIREN / RNA', b.identifiant ? esc(b.identifiant) : '<span class="muted">—</span>'],
+    ['Habilité à délivrer des reçus', b.habiliteRecu ? 'Oui' : 'Non'],
+    ['Adresse', b.adresse ? esc(b.adresse) : '<span class="muted">—</span>'],
+    ['Téléphone', b.telephone ? `<a href="tel:${esc(b.telephone)}">${esc(b.telephone)}</a>` : '<span class="muted">—</span>'],
+    ['Site web', b.siteWeb ? `<a href="${esc(b.siteWeb)}" target="_blank" rel="noopener">${esc(b.siteWeb)}</a>` : '<span class="muted">—</span>'],
+    ['Email', b.email ? `<a href="mailto:${esc(b.email)}">${esc(b.email)}</a>` : '<span class="muted">—</span>'],
+    ['Notes', b.notes ? esc(b.notes) : '<span class="muted">—</span>'],
+    ['Statut', b.archive ? 'Archivé' : 'Actif'],
+  ];
+  const m = openModal(b.nom, `
+    <div class="detail-suivi">${suiviBadge(b.indicateurSuivi)}</div>
+    <dl class="detail-list">${lignes.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+    <div class="form-actions"><button class="btn btn-sm btn-primary" id="bd_edit">✏️ Éditer</button></div>`);
+  m.querySelector('#bd_edit').onclick = () => benefModal(b);
+}
+
+// ---------- Formulaire bénéficiaire (création ET édition, factorisé) ----------
+function benefModal(benef) {
+  const isEdit = !!benef;
+  const b = benef || {};
+  const optCat = state.cats.map((c) => `<option value="${c.code}" ${c.code === b.categorie ? 'selected' : ''}>${esc(c.libelle)}</option>`).join('');
+  const optSuivi = Object.entries(SUIVI).map(([code, s]) => `<option value="${code}" ${(b.indicateurSuivi || 'neutre') === code ? 'selected' : ''}>${s.icon} ${s.label}</option>`).join('');
+  const body = `
+    <div id="beneferr"></div>
+    <form id="bform">
       <div class="row">
-        <div><label>Nom *</label><input id="eb_nom" value="${esc(b.nom)}" required /></div>
-        <div><label>Catégorie fiscale *</label><select id="eb_cat">${state.cats.map((c) => `<option value="${c.code}" ${c.code === b.categorie ? 'selected' : ''}>${esc(c.libelle)}</option>`).join('')}</select></div>
+        <div><label>Nom *</label><input id="b_nom" value="${esc(b.nom)}" required /></div>
+        <div><label>Catégorie fiscale *</label><select id="b_cat">${optCat}</select></div>
       </div>
       <div class="row">
-        <div><label>SIREN / RNA (facultatif)</label><input id="eb_id" value="${esc(b.identifiant)}" /></div>
-        <div><label>Habilité à délivrer des reçus</label><select id="eb_hab"><option value="true" ${b.habiliteRecu ? 'selected' : ''}>Oui</option><option value="false" ${!b.habiliteRecu ? 'selected' : ''}>Non</option></select></div>
+        <div><label>SIREN / RNA (facultatif)</label><input id="b_id" value="${esc(b.identifiant)}" /></div>
+        <div><label>Habilité à délivrer des reçus</label><select id="b_hab"><option value="true" ${b.habiliteRecu ? 'selected' : ''}>Oui</option><option value="false" ${isEdit && !b.habiliteRecu ? 'selected' : ''}>Non</option></select></div>
       </div>
       <div class="row">
-        <div><label>Adresse (facultatif)</label><input id="eb_adr" value="${esc(b.adresse)}" /></div>
-        <div><label>Téléphone (facultatif)</label><input id="eb_tel" type="tel" value="${esc(b.telephone)}" /></div>
+        <div><label>Adresse (facultatif)</label><input id="b_adr" value="${esc(b.adresse)}" /></div>
+        <div><label>Téléphone (facultatif)</label><input id="b_tel" type="tel" value="${esc(b.telephone)}" /></div>
       </div>
       <div class="row">
-        <div><label>Site web (facultatif)</label><input id="eb_web" type="url" value="${esc(b.siteWeb)}" placeholder="https://…" /></div>
-        <div><label>Email (facultatif)</label><input id="eb_email" type="email" value="${esc(b.email)}" /></div>
+        <div><label>Site web (facultatif)</label><input id="b_web" type="url" value="${esc(b.siteWeb)}" placeholder="https://…" /></div>
+        <div><label>Email (facultatif)</label><input id="b_email" type="email" value="${esc(b.email)}" /></div>
       </div>
-      <label>Notes (facultatif)</label><input id="eb_notes" value="${esc(b.notes)}" />
-      <div class="row" style="margin-top:.5rem;align-items:center">
-        <label style="margin:0"><input type="checkbox" id="eb_arch" ${b.archive ? 'checked' : ''} style="width:auto"> Archivé</label>
+      <div class="row">
+        <div><label>Suivi</label><select id="b_suivi">${optSuivi}</select></div>
+        <div><label>Notes (facultatif)</label><input id="b_notes" value="${esc(b.notes)}" /></div>
       </div>
+      ${isEdit ? `<div class="row" style="margin-top:.5rem;align-items:center">
+        <label style="margin:0"><input type="checkbox" id="b_arch" ${b.archive ? 'checked' : ''} style="width:auto"> Archivé</label>
+      </div>` : ''}
       <div class="form-actions"><button class="btn btn-primary" type="submit">Enregistrer</button></div>
-    </form>`);
-  m.querySelector('#ebform').onsubmit = async (e) => {
+    </form>`;
+  const m = openModal(isEdit ? 'Éditer le bénéficiaire' : 'Ajouter un bénéficiaire', body);
+  m.querySelector('#bform').onsubmit = async (e) => {
     e.preventDefault();
     try {
-      await api('PATCH', '/beneficiaires/' + b.id, {
-        nom: m.querySelector('#eb_nom').value, categorie: m.querySelector('#eb_cat').value,
-        identifiant: m.querySelector('#eb_id').value, habiliteRecu: m.querySelector('#eb_hab').value === 'true',
-        adresse: m.querySelector('#eb_adr').value, telephone: m.querySelector('#eb_tel').value,
-        siteWeb: m.querySelector('#eb_web').value, email: m.querySelector('#eb_email').value,
-        notes: m.querySelector('#eb_notes').value, archive: m.querySelector('#eb_arch').checked,
-      });
-      closeModal(); tabBenef();
-    } catch (err) { m.querySelector('#ebeneferr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
+      const payload = {
+        nom: m.querySelector('#b_nom').value, categorie: m.querySelector('#b_cat').value,
+        identifiant: m.querySelector('#b_id').value, habiliteRecu: m.querySelector('#b_hab').value === 'true',
+        adresse: m.querySelector('#b_adr').value, telephone: m.querySelector('#b_tel').value,
+        siteWeb: m.querySelector('#b_web').value, email: m.querySelector('#b_email').value,
+        notes: m.querySelector('#b_notes').value, indicateurSuivi: m.querySelector('#b_suivi').value,
+      };
+      if (isEdit) { payload.archive = m.querySelector('#b_arch').checked; await api('PATCH', '/beneficiaires/' + benef.id, payload); }
+      else await api('POST', '/beneficiaires', payload);
+      demoMapCache = null;
+      closeModal(); refreshCurrent();
+    } catch (err) { m.querySelector('#beneferr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
   };
 }
 
@@ -612,10 +656,10 @@ async function tabParams() {
     const g = b.regimes.ir_general, co = b.regimes.ir_coluche, pa = b.regimes.ir_partis;
     const src = b.source !== b.annee ? `<span class="muted">(hérite de ${b.source})</span>` : '<span class="muted">(propre)</span>';
     return `<tr>
-      <td>${b.annee} ${src}</td>
-      <td>${Math.round(g.taux * 100)} % · plafond ${Math.round(g.plafond.valeur * 100)} % du revenu</td>
-      <td>${Math.round(co.taux * 100)} % · plafond ${fmt(co.plafond.valeur)}</td>
-      <td>${Math.round(pa.taux * 100)} % · plafond ${fmt(pa.plafond.valeur)}</td>
+      <td data-label="Exercice">${b.annee} ${src}</td>
+      <td data-label="Intérêt général">${Math.round(g.taux * 100)} % · plafond ${Math.round(g.plafond.valeur * 100)} % du revenu</td>
+      <td data-label="Coluche">${Math.round(co.taux * 100)} % · plafond ${fmt(co.plafond.valeur)}</td>
+      <td data-label="Partis politiques">${Math.round(pa.taux * 100)} % · plafond ${fmt(pa.plafond.valeur)}</td>
     </tr>`;
   }).join('');
 
@@ -623,7 +667,7 @@ async function tabParams() {
     <div class="card">
       <h2>Barèmes fiscaux par exercice</h2>
       <p class="muted">Règles réellement appliquées à chacun de vos exercices. Une année sans barème propre hérite automatiquement du plus récent barème antérieur — jamais l'inverse : un changement de règle ne peut pas s'appliquer rétroactivement à un exercice déjà clos.</p>
-      <table><thead><tr><th>Exercice</th><th>Intérêt général</th><th>Coluche</th><th>Partis politiques</th></tr></thead><tbody>${rows}</tbody></table>
+      <table class="responsive"><thead><tr><th>Exercice</th><th>Intérêt général</th><th>Coluche</th><th>Partis politiques</th></tr></thead><tbody>${rows}</tbody></table>
       <p class="muted">Excédent de dons « intérêt général » au-delà du plafond du revenu imposable : reportable sur ${baremes[0]?.reportAnnees ?? 5} ans sur votre déclaration officielle (non suivi automatiquement dans l'app — voir le tableau de bord de l'exercice concerné).</p>
     </div>
     <div class="card">

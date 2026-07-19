@@ -231,14 +231,19 @@ api.get('/estimation', (req, res) => {
 });
 
 // Récapitulatif fiscal annuel en PDF (aide à la déclaration)
-api.get('/exercices/:annee/pdf', (req, res) => {
+api.get('/exercices/:annee/pdf', async (req, res) => {
   const db = store.get();
   const annee = parseInt(req.params.annee, 10);
   const ex = db.exercices.find((e) => e.annee === annee);
   const dons = db.dons.filter((d) => d.annee === annee).sort((a, b) => (a.date < b.date ? -1 : 1))
     .map((d) => ({ ...d, beneficiaire: db.beneficiaires.find((b) => b.id === d.beneficiaireId) || null }));
   const estimation = fiscal.estimer(dons.map((d) => ({ montant: d.montant, categorie: catDe(db, d.beneficiaireId) })), ex?.revenuImposable || null, annee);
-  pdf.genererRecapitulatif(res, { annee, identifiant: db.utilisateur.identifiant, dons, estimation });
+  try {
+    await pdf.genererRecapitulatif(res, { annee, identifiant: db.utilisateur.identifiant, dons, estimation, uploadDir: store.UPLOAD_DIR });
+  } catch (e) {
+    console.error('Erreur génération PDF:', e);
+    if (!res.headersSent) res.status(500).json({ error: 'Erreur lors de la génération du PDF' });
+  }
 });
 
 // Comparatif N-1 (bénéficiaires de l'année précédente)

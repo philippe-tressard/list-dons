@@ -24,14 +24,14 @@ Pour chaque **année d'imposition**, List-dons permet de :
 - estimer la **réduction d'impôt probable**, avec le détail par régime et le plafond du revenu imposable ;
 - comparer les dons d'une année à l'autre (**rappel N-1**, historique pluriannuel) ;
 - **conserver et retrouver les justificatifs** (reçus fiscaux) ;
-- générer un **récapitulatif PDF** pour aider à la déclaration ;
+- générer un **récapitulatif PDF** (avec les **reçus annexés** : images intégrées et pages PDF importées) pour aider à la déclaration ;
 - présenter l'application sans exposer de données réelles (**mode confidentialité**).
 
-Application **mono-foyer**, **auto-hébergée**, **accès local (LAN)**, respectueuse de la vie privée (**RGPD**).
+Application **mono-foyer**, **auto-hébergée**, **accès local (LAN)**, **interface responsive** (mobile/desktop), respectueuse de la vie privée (**RGPD**).
 
 ## État actuel
 
-- **Prototype fonctionnel** ([`prototype/`](prototype/), Node/Express + JS vanilla) : couvre l'authentification, les exercices, les bénéficiaires, les dons (uniques/récurrents), les justificatifs, le moteur fiscal (barèmes par année avec héritage N ← N-1, plafond du revenu imposable), le rappel N-1, l'historique pluriannuel, le récapitulatif PDF et le mode confidentialité. Détail complet : [`prototype/README.md`](prototype/README.md).
+- **Prototype fonctionnel** ([`prototype/`](prototype/), Node/Express + JS vanilla) : couvre l'authentification, les exercices, les bénéficiaires, les dons (uniques/récurrents), les justificatifs, le moteur fiscal (barèmes par année avec héritage N ← N-1, plafond du revenu imposable), le rappel N-1, l'historique pluriannuel, le récapitulatif PDF (reçus annexés) et le mode confidentialité. **Interface responsive** : tableaux qui se transforment en cartes sur mobile, consultation d'un don/bénéficiaire au clic (fiche détail complète), saisie et édition par une même fenêtre modale. Détail complet : [`prototype/README.md`](prototype/README.md).
 - **Déployé** sur un Raspberry Pi du foyer, isolé d'une autre application co-hébergée sur la même machine — voir [`deploy/README.md`](deploy/README.md) pour les garanties d'isolation et la procédure.
 - **Implémentation cible** (Rust + Axum + SQLite + SvelteKit) : pas encore commencée. Le prototype existe car Rust et Docker n'étaient pas disponibles sur la machine de développement initiale.
 
