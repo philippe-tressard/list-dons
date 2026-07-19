@@ -1,6 +1,6 @@
 # Modèle de données
 
-> Modèle conceptuel. Schéma SQL non figé (défini en conception, migrations `sqlx`).
+> Modèle conceptuel. Implémenté en fichier JSON (`lib/store.js`) — écriture atomique + filet `.bak`.
 
 ## Conventions transverses
 - **Montants en entiers (centimes)** — jamais de flottant pour l'argent (évite les erreurs d'arrondi). Formatage `€` uniquement à l'affichage. Ex. 50,00 € = `5000`.
@@ -10,8 +10,8 @@
 ## Entités
 
 ### Utilisateur *(compte unique — mono-foyer)*
-- `identifiant` (email ou nom d'utilisateur)
-- `mot_de_passe_hash` (**Argon2id**)
+- `identifiant` (email)
+- `mot_de_passe_hash` (**bcrypt**)
 - `cree_le`, `dernier_acces`
 - Détails d'authentification : voir [`../web/authentification.md`](../web/authentification.md).
 

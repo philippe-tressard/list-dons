@@ -1,8 +1,8 @@
 # MVP fonctionnel — List-dons (Node)
 
-> ⚠️ **MVP fonctionnel, déployé et en usage réel.** Il valide l'UX et le moteur fiscal en conditions réelles.
-> L'implémentation **cible** reste **Rust (Axum) + SvelteKit + SQLite**, conformément aux spécifications (`../SPECIFICATIONS.md`, `../specs/`).
-> Ce MVP a été fait sur une machine sans Rust ni Docker, pour livrer quelque chose de testable immédiatement — il a fini par devenir l'instance réellement utilisée.
+> ⚠️ **MVP fonctionnel, déployé et en usage réel — implémentation retenue.** Il valide l'UX et le moteur fiscal en conditions réelles.
+> Conforme aux spécifications (`../SPECIFICATIONS.md`, `../specs/`), qui décrivent cette stack Node.js/Express + JS vanilla comme définitive (§8).
+> Ce MVP a été fait initialement sur une machine sans Rust ni Docker, pour livrer quelque chose de testable immédiatement — il a fini par devenir l'instance réellement utilisée, et le restera.
 
 ## Ce qui fonctionne
 

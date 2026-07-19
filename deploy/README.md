@@ -1,9 +1,8 @@
 # Déploiement sur le RPi2 — isolé de 5Hostachy
 
-Déploie **List-dons** (prototype) dans un projet Docker **dédié et isolé**, à côté de 5Hostachy, **sans jamais interférer**.
+Déploie **List-dons** (MVP Node.js/Express — implémentation retenue) dans un projet Docker **dédié et isolé**, à côté de 5Hostachy, **sans jamais interférer**.
 
-> ⚠️ Déploie le **prototype Node** (banc d'essai). L'implémentation cible (Rust + SvelteKit) suivra.
-> Accès **LAN en HTTP** sur un port dédié (défaut **8080**). Le HTTPS (Caddy `tls internal` / port 8443) viendra avec la cible Rust.
+> Accès **LAN en HTTP** sur un port dédié (défaut **8080**). Le **HTTPS** (Caddy `tls internal`, sans changement de stack applicative) est prévu comme prochaine étape de durcissement.
 
 ## Garanties d'isolation (exigence non négociable — specs §8.1)
 

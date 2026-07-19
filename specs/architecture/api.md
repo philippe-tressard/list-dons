@@ -1,6 +1,6 @@
 # API (esquisse)
 
-> Esquisse REST à consolider en conception. Backend **Axum**. Auth par **JWT en cookie HttpOnly/Secure/SameSite=strict**. Toutes les entrées validées côté serveur.
+> API REST implémentée en **Node.js/Express**. Auth par **JWT en cookie HttpOnly/SameSite=strict**. Toutes les entrées validées côté serveur.
 
 ## Conventions
 - Base : `/api`. Réponses JSON. Erreurs normalisées (code + message).

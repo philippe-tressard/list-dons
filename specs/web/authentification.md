@@ -40,7 +40,7 @@
 - Accessibilité : erreur dans un bloc `role="alert"`, focus géré, navigation clavier.
 
 ## Sécurité (voir aussi [exigences non fonctionnelles](exigences-non-fonctionnelles.md))
-- Hachage du mot de passe avec **Argon2id** (paramètres à jour).
+- Hachage du mot de passe avec **bcrypt**.
 - Session par **JWT en cookie `HttpOnly` + `Secure` + `SameSite=Strict`** (jamais `localStorage`). Protection CSRF assurée par `SameSite=Strict`.
 - **Rate limiting** sur la connexion (ex. 5 tentatives/min) + **verrouillage temporaire** après plusieurs échecs.
 - **Expiration de session** + **déconnexion** explicite ; option « expiration après inactivité ».

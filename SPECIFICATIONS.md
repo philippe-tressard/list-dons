@@ -45,6 +45,7 @@
 | 2026-07-19 | 3.4     | Claude | **Correctif PDF (régression 3.3 sur données réelles)** : la génération du récap 2026 échouait (`ERR_INVALID_RESPONSE` / page blanche). Cause identifiée dans les logs : `WinAnsi cannot encode "" (0x0080)` — une pièce jointe portait, dans son nom, un **caractère de contrôle C1 (U+0080)** que `winsafe()` laissait passer (il ne filtrait que `> 0xFF`, or WinAnsi ne sait pas encoder 0x80–0x9F), donc `drawText` (page de garde pdf-lib) jetait. Aggravé par l'ordre d'envoi : les en-têtes PDF étaient posés **avant** la fusion, d'où une réponse tronquée côté client. Corrections : (1) **`winsafe` réécrit** en filtre par codepoints (source 100 % ASCII, sans caractères invisibles fragiles) — supprime les contrôles C0/C1, mappe la ponctuation « intelligente »/€, remplace le hors-WinAnsi par « ? » ; (2) **chaque pièce jointe isolée dans un `try/catch`** (une PJ défaillante n'interrompt plus tout le récap) ; (3) **en-têtes HTTP posés après** la construction complète du buffer (une erreur renvoie désormais un 500 propre). Vérifié **sur les vraies données du RPi2** (exécution hors-ligne dans le conteneur) : récap 2026 = 3 pages, 2025 = 8 pages, zéro erreur ; fichiers temporaires (données personnelles) supprimés après contrôle. Redéployé. |
 | 2026-07-19 | 3.5     | Claude | **Durcissement « passage en prod » — étape 1/2** (le MVP n'est plus jetable ; objectif : robustesse à évolutions minimales, sans changer d'archi ni migrer vers SQLite/Rust). (1) **Écriture atomique de `db.json`** (`store.js`) : fichier temporaire + `fsync` + `rename`, avec conservation d'un **`.bak`** avant chaque écriture et **récupération automatique** au chargement si `db.json` est corrompu (protège des coupures de courant du RPi — testé : corruption simulée → base restaurée). (2) **Rate-limiting + verrouillage** de `/api/login` (fenêtre glissante par IP, 8 essais / 15 min, fait main — zéro dépendance ; testé : 8×401 puis 429). (3) **En-têtes de sécurité** (middleware fait main) : CSP stricte (`script-src 'self'`, `style-src 'unsafe-inline'` pour les styles inline, `img-src data:` pour le favicon), `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`. Le `<script>` inline de la page mentions légales est supprimé (année rendue côté serveur via placeholder) pour rester compatible CSP. (4) **Validation serveur stricte** : montant (entier ≥ 0, plus de `NaN` en base), date (`AAAA-MM-JJ` réelle), catégorie fiscale (enum fermé), fréquence récurrente, existence du bénéficiaire — testé (montant/date/benef invalides → 400). **Zéro dépendance ajoutée, aucun changement d'archi.** Non-régression vérifiée (UI sous CSP sans erreur console, PDF OK). **Étape 2 à venir** (après validation utilisateur) : **HTTPS LAN via Caddy `tls internal`** (cookie `Secure`, chiffrement du trafic), dans le respect de l'isolation 5Hostachy (jamais 80/443). |
 | 2026-07-19 | 3.6     | Claude | **« Mot de passe oublié » + clarifications de l'écran de connexion** (demande utilisateur). (1) L'identifiant est explicité comme un **email** : champ `type="email"`, libellé « Email * ». (2) **Légende « * champ obligatoire »** ajoutée sous le formulaire (connexion et réinitialisation). (3) **Réinitialisation locale sans SMTP** (conforme à [`authentification.md`](specs/web/authentification.md) § Réinitialisation) : lien « Mot de passe oublié ? » → saisie de l'email → `POST /api/forgot` génère un **code à usage unique** (8 hex, 15 min, 5 essais max) et l'**inscrit dans le journal du serveur** (l'accès machine = preuve de légitimité pour le foyer) ; l'écran révèle alors la saisie du code + nouveau mot de passe → `POST /api/reset`. Réponses **non énumérantes** (identique que le compte existe ou non). Endpoints hors auth, protégés par le throttle existant. Compte de démo (`seed.js`) passé en email `demo@list-dons.fr` / `demo123` pour rester cohérent avec le champ email. Testé de bout en bout (email inconnu → aucun code ; bon email → code au log ; mauvais code → 400 ; bon code → 200 ; ancien mdp invalidé ; code non rejouable) + IHM au navigateur sans erreur CSP. |
+| 2026-07-19 | 3.7     | Claude | **Abandon définitif de la cible Rust/SvelteKit/SQLite** (décision utilisateur : « je ne le ferai pas »). Le **MVP Node.js/Express + JS vanilla + fichier JSON**, déployé et en usage réel depuis des mois, devient l'**implémentation retenue** — il n'y aura pas de réécriture Rust. **§8 réécrit** : « Architecture technique (proposition, en Rust) » → « Architecture technique (Node.js — implémentation retenue) », décrivant la stack réelle (Express, `lib/store.js` avec écriture atomique, JS vanilla, pdfkit/pdf-lib) au lieu d'une cible hypothétique. Conséquences directes de cet abandon, alignées dans `SPECIFICATIONS.md` et `specs/` (`README.md`, `architecture/stack.md`, `architecture/vue-ensemble.md`, `architecture/principes-code.md`, `architecture/api.md`, `architecture/modele-donnees.md`, `web/exigences-non-fonctionnelles.md`) : **hachage Argon2 → bcrypt** (Argon2 n'était retenu que comme « équivalent Rust moderne de bcrypt » ; bcrypt est ce que l'app utilise réellement) ; **persistance SQLite → fichier JSON** ; retrait des outillages Rust (`cargo`/`clippy`/`rustfmt`/`sqlx`/`cargo-about`) remplacés par leurs équivalents Node réels ou notés « à définir si besoin ». Les entrées de journal antérieures (0.2 à 3.5) qui actaient la cible Rust reflètent l'état des décisions à leur date et **restent inchangées** (registre historique) ; c'est cette entrée qui acte le changement de cap. Le README racine avait déjà été aligné dans un commit précédent. |
 
 ---
 
@@ -73,9 +74,9 @@ List-dons applique un socle de qualité cohérent sur tout le projet :
 | **Structure specs** | Spécifications versionnées, éclatées par domaine dans `specs/` (voir §12) |
 | **Design system** | Charte graphique complète : palette, typo système sans CDN, grille 4 px, dark mode, WCAG 2.2 AA (voir §9) |
 | **Patterns UX** | Cartes expansibles, pills, onglets, badges, conventions de formulaires, icônes emoji (voir §9) |
-| **Stack** | Backend **Rust** (Axum), front SvelteKit (SSR), SQLite (WAL), migrations, reverse proxy Caddy, Docker Compose (voir §8) |
+| **Stack** | Backend **Node.js/Express**, front **JS vanilla**, persistance **fichier JSON** (écriture atomique), reverse proxy Caddy (prévu), Docker Compose (voir §8) |
 | **MEP / Ops** | CI GitHub Actions, Docker, auto-déploiement, sauvegardes testées, versioning SemVer (voir §11) |
-| **Sécurité** | JWT cookie HttpOnly, hachage Argon2, rate limiting, CSP, headers, validation serveur, audit OWASP (voir §10) |
+| **Sécurité** | JWT cookie HttpOnly, hachage bcrypt, rate limiting, CSP, headers, validation serveur, audit OWASP (voir §10) |
 | **Conformité** | RGPD, LCEN (mentions légales), inventaire licences (REUSE), éco-conception (voir §10) |
 
 ---
@@ -114,7 +115,7 @@ List-dons applique un socle de qualité cohérent sur tout le projet :
 
 > **Conventions** : montants stockés en **entiers (centimes)** — jamais de flottant pour l'argent (bonne pratique métier : pas d'erreur d'arrondi). Dates de versement en `date`. Clés étrangères + contraintes actives.
 
-**Utilisateur** *(compte unique — mono-foyer)* : identifiant (email/nom) ; mot de passe haché **Argon2id** ; dates. Authentification détaillée en [`specs/web/authentification.md`](specs/web/authentification.md).
+**Utilisateur** *(compte unique — mono-foyer)* : identifiant (email) ; mot de passe haché **bcrypt** ; dates. Authentification détaillée en [`specs/web/authentification.md`](specs/web/authentification.md).
 
 **AnnéeImposition** (= exercice fiscal) : année ; revenu imposable estimé (optionnel, pour le plafond 20 %) ; statut (en cours / clôturée).
 
@@ -308,7 +309,7 @@ Réservé aux **entreprises**. L'application cible un **particulier** → **non 
 7. **IFI/mécénat** (si activés) : filières de calcul séparées ; appliquer le **non-cumul IR/IFI** sur une même somme.
 8. Restituer : réduction totale estimée, **détail par régime/bénéficiaire**, montant **reportable**, et **cases de déclaration** (2042 RICI — libellés à compléter/dater par millésime).
 
-> **Tests prioritaires** (`cargo test`) : sous-plafond 1 500 €, bascule 75 %→66 % au plafond Coluche, changement de plafond intra-année (14/10/2025), plafonds en euros hors 20 %, plafonnement 20 % + report sur 5 ans, non-cumul IR/IFI, cumul multi-régimes.
+> **Tests prioritaires** (auto-test du moteur fiscal, `node lib/fiscal.selftest.js`) : sous-plafond 1 500 €, bascule 75 %→66 % au plafond Coluche, changement de plafond intra-année (14/10/2025), plafonds en euros hors 20 %, plafonnement 20 % + report sur 5 ans, non-cumul IR/IFI, cumul multi-régimes.
 
 ### 6.7 Exemple — exercice 2025 (fictif, sert de fixture de test de non-régression)
 
@@ -372,40 +373,41 @@ Réservé aux **entreprises**. L'application cible un **particulier** → **non 
 
 ---
 
-## 8. Architecture technique (proposition, en Rust)
+## 8. Architecture technique (Node.js — implémentation retenue)
 
 > 🧭 **Contrainte forte — anti-complexité & factorisation** : l'app ne doit pas se complexifier avec le temps ; chaque évolution **réutilise ou factorise**. Découpage par domaines, moteur fiscal = fonction pure sur des données, composants front réutilisables, zéro duplication. Règles complètes : [`specs/architecture/principes-code.md`](specs/architecture/principes-code.md).
 
-**Backend (Rust)**
-- Framework web : **Axum** (équivalent de FastAPI).
-- Base : **SQLite en mode WAL** via **sqlx** (ou SeaORM).
-- Migrations versionnées : **sqlx migrate** (équivalent Alembic).
-- Validation stricte des entrées : **serde** + validation métier (jamais confiance au client).
-- Auth : **JWT en cookie HttpOnly/Secure/SameSite=strict** ; hachage **Argon2** (équivalent moderne de bcrypt) ; rate limiting sur `/auth/*`.
-- Lint/format : **clippy** + **rustfmt** (équivalents de Ruff).
-- Tests : **cargo test** — le **moteur de calcul fiscal est la cible de test prioritaire**.
+**Backend (Node.js / Express)**
+- Framework web : **Express**.
+- Persistance : **fichier JSON** (`lib/store.js`) — écriture atomique (fichier temporaire + `fsync` + `rename`) et filet `.bak` avec récupération automatique en cas de corruption.
+- Validation stricte des entrées côté serveur (montant, date, catégorie fiscale, existence du bénéficiaire…) — jamais confiance au client.
+- Auth : **JWT en cookie HttpOnly/SameSite=strict** ; hachage **bcrypt** ; rate limiting + verrouillage temporaire sur `/api/login` ; réinitialisation locale du mot de passe (code à usage unique inscrit dans le journal serveur, sans SMTP).
+- Tests : auto-test du **moteur de calcul fiscal** (`lib/fiscal.selftest.js`) — cible de test prioritaire.
 
-**Frontend — Option A actée (§13)**
-- **SvelteKit + TS + Vite** (SSR) : applique la charte et les patterns UX du projet (§9). La logique métier reste en Rust (backend). *(Leptos / 100 % Rust écarté.)*
+**Frontend**
+- **JS vanilla** (sans framework, sans étape de build) + CSS : applique la charte et les patterns UX du projet (§9). Interface **responsive** (tableaux → cartes empilées sur mobile), consultation et édition via des fenêtres modales.
+
+**PDF**
+- **pdfkit** (rapport : estimation, tableaux, sommaire) + **pdf-lib** (fusion des reçus : images intégrées, pages des reçus PDF réellement importées).
 
 **Infra & déploiement (décidé)**
 
 List-dons est **co-hébergée sur le RPi2** (même machine que **5Hostachy**) mais reste une **application totalement indépendante** : aucune interférence avec 5Hostachy, et **sans nom de domaine**.
 
-- **Isolation stricte** (défaut retenu — voir §8.1) : projet Docker Compose distinct, réseau/volumes/noms de conteneurs dédiés `listdons_*`, dossier `/opt/list-dons`, cron propre. **Aucun couplage** avec les scripts d'ops de 5Hostachy (déploiement, supervision, éventuel failover) — List-dons tourne en permanence sur le RPi2, quel que soit l'état actif/standby de 5Hostachy.
-- **Reverse proxy dédié** : Caddy propre à List-dons, écoutant sur des **ports non conflictuels** (ex. `8443`/`8080`) — **jamais 80/443** (réservés à 5Hostachy).
-- **Accès local (LAN) uniquement — décidé** : accessible seulement depuis le réseau domestique via l'IP du RPi2 (ex. `https://192.168.1.x:8443`), TLS **auto-signé** via Caddy `tls internal` (pas de Let's Encrypt sans domaine). **Aucune exposition sur Internet** (pas de tunnel, pas de redirection de port sur la box). Un accès distant (VPN **Tailscale/WireGuard**) reste une **option ultérieure**, non retenue pour l'instant.
-- Config par **`.env`** (+ `.env.example`), `SECRET_KEY` obligatoire (min 32 c.).
+- **Isolation stricte** (défaut retenu — voir §8.1) : projet Docker Compose distinct, réseau/volumes/noms de conteneurs dédiés `listdons_*`, dossier dédié sur le RPi2, cron propre. **Aucun couplage** avec les scripts d'ops de 5Hostachy (déploiement, supervision, éventuel failover) — List-dons tourne en permanence sur le RPi2, quel que soit l'état actif/standby de 5Hostachy.
+- **Reverse proxy** : Caddy dédié à List-dons **prévu** (HTTPS LAN, `tls internal` — étape de durcissement à venir) ; port applicatif actuel `8080`, **jamais 80/443** (réservés à 5Hostachy).
+- **Accès local (LAN) uniquement — décidé** : accessible seulement depuis le réseau domestique via l'IP du RPi2 (`http://192.168.1.x:8080`, HTTPS à venir via Caddy). **Aucune exposition sur Internet** (pas de tunnel, pas de redirection de port sur la box). Un accès distant (VPN **Tailscale/WireGuard**) reste une **option ultérieure**, non retenue pour l'instant.
+- Config par variables d'environnement (`.env` / `.env.example`).
 
 ```
 List-dons/
-├── app/                # Backend Rust (Axum) — routers, models, calcul fiscal
-│   └── migrations/     # Migrations SQLite (sqlx)
-├── front/              # Frontend SvelteKit
-├── specs/              # Spécifications (voir §12)
-├── docs/               # Déploiement & ops
-├── docker-compose.yml
-└── SPECIFICATIONS.md   # (ce fichier — index des specs)
+├── prototype/           # Application (Node.js/Express + JS vanilla) — l'implémentation retenue
+│   ├── lib/             # Modules métier : store (persistance), fiscal (moteur), pdf
+│   ├── public/          # IHM (JS vanilla, CSS)
+│   └── data/            # Base JSON + uploads (volume Docker, non versionné)
+├── deploy/              # Déploiement RPi2 (docker-compose, script garde-fou, sauvegardes)
+├── specs/               # Spécifications (voir §12)
+└── SPECIFICATIONS.md    # (ce fichier — index des specs)
 ```
 
 ### 8.1 Co-tenance sur le RPi2 — isolation stricte (exigence **DURE**)
@@ -427,7 +429,7 @@ Les deux applications partagent la machine, **rien d'autre**. Invariants à resp
 | Sauvegardes | *(les siennes)* | `/opt/list-dons/backups` | Sauvegardes indépendantes |
 
 - **Ne pas dépendre de 5Hostachy** : List-dons doit **rester up en continu sur le RPi2**, quel que soit l'état actif/standby de 5Hostachy (y compris si celui-ci bascule entre nœuds). Ses conteneurs sont en `restart: unless-stopped` et son cycle de vie est piloté par **son propre** Compose uniquement.
-- **Limites de ressources obligatoires** : le RPi5 est modeste ; List-dons **DOIT** déclarer des limites `deploy.resources` (CPU/RAM) plafonnées, pour **garantir la priorité à 5Hostachy** en toute circonstance. Le backend Rust aide (faible empreinte).
+- **Limites de ressources obligatoires** : le RPi5 est modeste ; List-dons **DOIT** déclarer des limites `deploy.resources` (CPU/RAM) plafonnées, pour **garantir la priorité à 5Hostachy** en toute circonstance. L'empreinte de Node.js reste compatible avec ce plafond sur ce périmètre mono-foyer.
 - **Pas de MAJ croisée** : le script de déploiement de List-dons **ne modifie ni ne redémarre** aucun conteneur/volume/réseau/port de 5Hostachy.
 - **Garde-fou de déploiement (obligatoire)** : le script de MEP de List-dons effectue un **contrôle avant/après** — il relève l'état de 5Hostachy (conteneurs `hostachy_*` actifs, ports 80/443, disponibilité) **avant** d'agir, et **abandonne** s'il détecte le moindre impact **après**. Il ne s'exécute jamais en tant que root sur les ressources de 5Hostachy.
 - **Firewall** : n'ouvrir que le(s) port(s) LAN de List-dons (ex. 8443) ; ne jamais modifier les règles UFW existantes (SSH LAN, 80/443).
@@ -454,7 +456,7 @@ Les deux applications partagent la machine, **rien d'autre**. Invariants à resp
 
 **Accessibilité** — cible **WCAG 2.2 AA** : contraste ≥ 4,5:1, navigation clavier complète, focus visible, ARIA, `prefers-reduced-motion`.
 
-**Performance / éco-conception** — pas de framework CSS lourd ni CDN ; bundle JS < 150 Ko gzip (si SvelteKit) ; images WebP/AVIF + lazy-loading ; aucun tracker.
+**Performance / éco-conception** — pas de framework CSS lourd ni CDN, pas de framework JS (**JS vanilla**, zéro build) ; images WebP/AVIF + lazy-loading ; aucun tracker.
 
 ---
 
@@ -463,7 +465,7 @@ Les deux applications partagent la machine, **rien d'autre**. Invariants à resp
 **Sécurité**
 - HTTPS via Caddy — **sans domaine** : TLS **auto-signé** (`tls internal`) sur le LAN (pas de Let's Encrypt). Certificat racine local à installer sur les appareils du foyer pour éviter les avertissements navigateur.
 - **CSP stricte** (pas d'`unsafe-inline` en prod) + headers `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, HSTS.
-- **Authentification obligatoire** (mono-foyer, [§auth](specs/web/authentification.md)) : JWT en cookie **HttpOnly/Secure/SameSite=strict** (jamais localStorage) ; hachage **Argon2id** ; **rate limiting** + **verrouillage temporaire** sur la connexion ; messages d'erreur **non énumérants**. Pas d'inscription publique ; compte créé au 1er lancement.
+- **Authentification obligatoire** (mono-foyer, [§auth](specs/web/authentification.md)) : JWT en cookie **HttpOnly/Secure/SameSite=strict** (jamais localStorage) ; hachage **bcrypt** ; **rate limiting** + **verrouillage temporaire** sur la connexion ; messages d'erreur **non énumérants**. Pas d'inscription publique ; compte créé au 1er lancement.
 - Protection **path traversal** sur uploads de reçus ; validation serveur systématique ; secrets hors code (`.env` en `.gitignore`).
 - **Audit OWASP Top 10** avant chaque release (procédure d'audit à automatiser).
 
@@ -481,7 +483,7 @@ Les deux applications partagent la machine, **rien d'autre**. Invariants à resp
 
 **Licences open source** (repris : REUSE compliance)
 - Toute dépendance sous licence permissive (MIT/Apache-2.0/BSD/ISC) ; copyleft fort validé explicitement.
-- Inventaire des licences généré au build (`cargo-about` côté Rust, `license-checker` côté front).
+- Inventaire des licences (`license-checker` ou équivalent npm) à générer au build si besoin.
 - Page **À propos / Licences** + `LICENSES/` conforme **REUSE**.
 - **Avertissement légal** affiché : estimation indicative, non un conseil fiscal.
 - Licence du projet : **MIT** (décidé).
@@ -491,17 +493,15 @@ Les deux applications partagent la machine, **rien d'autre**. Invariants à resp
 ## 11. Bonnes pratiques de MEP / DevOps
 
 - **Git** dès le départ : branches `main` / `dev`, revue, **SemVer** + bump de version + CHANGELOG (ex. `chore(version): bump vX.Y.Z`).
-- **CI GitHub Actions** (équivalents Rust) :
-  - `cargo fmt --check` (format)
-  - `cargo clippy -D warnings` (lint — équivalent Ruff)
-  - `cargo test` (tests — priorité au moteur fiscal)
-  - `cargo audit` (dépendances vulnérables)
-  - build front (`npm run build` si SvelteKit)
+- **CI GitHub Actions** (à mettre en place si besoin — pas de pipeline imposé à ce stade, déploiement manuel maîtrisé via `deploy-rpi2.sh`) :
+  - lint/format JS (si adopté)
+  - auto-test du moteur fiscal (`node lib/fiscal.selftest.js`) — priorité
+  - `npm audit` (dépendances vulnérables)
 - **CD / MEP** : `docker compose up --build -d` ; script d'**auto-déploiement** ; build sélectif + cache (option `--nocache`).
 - **Migrations** jouées automatiquement au démarrage.
 - **Observabilité** : endpoint `/api/health`, logs structurés (sans données personnelles), rotation des logs.
 - **Résilience — niveau SIMPLE (décidé)** : `restart: unless-stopped` suffit. **Pas** de monitoring/alerting/failover (surdimensionné pour un usage perso LAN, et réduit le risque d'interférence avec l'autre application). Un endpoint `/health` basique est admis, sans alerting.
-- **Sauvegardes (obligatoires)** : sauvegarde **quotidienne automatique** de la base SQLite + reçus vers `/opt/list-dons/backups`, rotation, et **procédure de restauration testée** et documentée. C'est le vrai filet de sécurité d'un usage perso.
+- **Sauvegardes (obligatoires)** : sauvegarde **quotidienne automatique** de la base JSON + reçus vers `/opt/list-dons/backups`, rotation, et **procédure de restauration testée** et documentée. C'est le vrai filet de sécurité d'un usage perso.
 - **Sécurité infra** : n'exposer que 80/443 ; SSH restreint au LAN ; mises à jour mensuelles.
 - **Documentation** : README, guide d'auto-hébergement, `.env.example`, CONTRIBUTING, SECURITY.
 
@@ -524,7 +524,7 @@ Ce fichier `SPECIFICATIONS.md` reste l'**index / source de vérité** ; les fich
 ## 13. Décisions & questions ouvertes
 
 **Décisions actées**
-- ✅ **Frontend = Option A (SvelteKit)** ; backend et logique en Rust. Leptos écarté.
+- ✅ **Stack retenue = Node.js/Express + JS vanilla**, persistance en **fichier JSON** — le MVP est devenu l'**implémentation définitive** (§8). Pas de réécriture Rust/SvelteKit/SQLite.
 - ✅ **Mono-foyer** au départ (pas de multi-utilisateur dans le MVP).
 - ✅ **Licence MIT**.
 - ✅ **Fiscalité modulaire** par année + par date d'effet, avec **héritage N ← N-1** si pas de règle spécifique ; barèmes **2025, 2026 et 2027** fournis (§6).

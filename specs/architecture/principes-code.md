@@ -38,19 +38,19 @@ app/
 
 ## 4. Frontière stricte : logique ≠ présentation ≠ persistance
 
-- La **logique métier** (surtout fiscale) vit dans le backend Rust, **sans I/O** dans le cœur de calcul.
+- La **logique métier** (surtout fiscale) vit dans le backend Node.js, **sans I/O** dans le cœur de calcul.
 - Le **front** n'implémente **aucune règle fiscale** (il affiche ce que l'API renvoie).
 - La **persistance** est isolée derrière une couche d'accès (repository) ; le métier ne connaît pas le SQL.
 
 ## 5. Dépendances : sobriété
 
-- **Budget de dépendances** : chaque crate/paquet ajouté doit être justifié (valeur > coût de maintenance et de surface d'attaque).
-- Préférer la **bibliothèque standard** et quelques crates éprouvées (Axum, sqlx, serde, argon2…) à un empilement.
-- Pas de framework CSS lourd ni CDN (cf. charte).
+- **Budget de dépendances** : chaque paquet npm ajouté doit être justifié (valeur > coût de maintenance et de surface d'attaque).
+- Préférer les **modules natifs de Node.js** et quelques paquets éprouvés (Express, bcryptjs, jsonwebtoken…) à un empilement.
+- Pas de framework CSS lourd ni CDN (cf. charte). Front en **JS vanilla**, sans framework.
 
 ## 6. Garde-fous (vérifiables en CI)
 
-- `cargo clippy -D warnings` + `cargo fmt` : style et pièges détectés automatiquement.
+- Lint/format JS (si adopté) : style et pièges détectés automatiquement.
 - **Fonctions et fichiers courts** : si une fonction dépasse ~50 lignes ou fait plusieurs choses, la découper.
 - **Pas de duplication** : une revue signale tout copier-coller (viser un détecteur de duplication).
 - **Tests de non-régression** comme filet : le moteur fiscal a des **fixtures** (ex. exercice 2025, §6.7) qui figent les résultats attendus.
