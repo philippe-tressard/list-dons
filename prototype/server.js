@@ -118,6 +118,49 @@ app.post('/api/login', loginThrottle, (req, res) => {
 
 app.post('/api/logout', (req, res) => { res.clearCookie('ld_session'); res.json({ ok: true }); });
 
+// ---- Mot de passe oublié : réinitialisation LOCALE (sans SMTP) -----------
+// Conforme aux specs (§ Réinitialisation) : un code à usage unique est généré et INSCRIT
+// DANS LE JOURNAL DU SERVEUR. Seul quelqu'un ayant accès à la machine (le foyer) peut le
+// lire → c'est la preuve de légitimité pour un usage mono-foyer auto-hébergé. Réponses
+// non énumérantes (ne révèlent jamais si le compte existe).
+let resetToken = null; // { code, expires, attempts }
+const RESET_TTL_MS = 15 * 60 * 1000;
+
+app.post('/api/forgot', loginThrottle, (req, res) => {
+  const db = store.get();
+  const email = String((req.body || {}).identifiant || '').trim();
+  if (db.utilisateur && db.utilisateur.identifiant === email) {
+    const code = crypto.randomBytes(4).toString('hex').toUpperCase(); // 8 caractères hex
+    resetToken = { code, expires: Date.now() + RESET_TTL_MS, attempts: 0 };
+    console.log('\n==================================================');
+    console.log(' RÉINITIALISATION DE MOT DE PASSE — List-dons');
+    console.log(' Compte : ' + email);
+    console.log(' CODE À USAGE UNIQUE : ' + code);
+    console.log(' Valide 15 min. À saisir dans l\'écran « Mot de passe oublié ».');
+    console.log('==================================================\n');
+  }
+  // Réponse identique que le compte existe ou non (non énumérant).
+  res.json({ ok: true, message: "Si ce compte existe, un code à usage unique a été inscrit dans le journal du serveur." });
+});
+
+app.post('/api/reset', loginThrottle, (req, res) => {
+  const db = store.get();
+  const { identifiant, code, password } = req.body || {};
+  const email = String(identifiant || '').trim();
+  if (!resetToken || Date.now() > resetToken.expires) { resetToken = null; return res.status(400).json({ error: 'Code expiré ou inexistant. Recommencez la procédure.' }); }
+  if (resetToken.attempts >= 5) { resetToken = null; return res.status(429).json({ error: 'Trop de tentatives. Recommencez la procédure.' }); }
+  if (!db.utilisateur || db.utilisateur.identifiant !== email || String(code || '').trim().toUpperCase() !== resetToken.code) {
+    resetToken.attempts++;
+    return res.status(400).json({ error: 'Code incorrect.' });
+  }
+  if (!password || String(password).length < 6) return res.status(400).json({ error: 'Nouveau mot de passe requis (≥ 6 caractères).' });
+  db.utilisateur.hash = bcrypt.hashSync(String(password), 10);
+  store.save();
+  resetToken = null;
+  console.log('Mot de passe réinitialisé pour ' + email + '.');
+  res.json({ ok: true });
+});
+
 // ---- API protégée -------------------------------------------------------
 const api = express.Router();
 api.use(requireAuth);

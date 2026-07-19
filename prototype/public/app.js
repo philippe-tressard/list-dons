@@ -119,7 +119,8 @@ async function render() {
 }
 
 // ---------- Auth ----------
-function renderAuth(s) {
+function renderAuth(s, view = 'login') {
+  if (view === 'reset') return renderReset(s);
   const setup = !s.hasAccount;
   app.innerHTML = `
     <div class="auth-page"><div class="card auth-card">
@@ -128,13 +129,16 @@ function renderAuth(s) {
       <p class="sub">Vos dons, votre imposition</p>
       <div id="autherr"></div>
       <form id="authform">
-        <label for="id">Identifiant *</label>
-        <input id="id" autocomplete="username" required />
+        <label for="id">Email *</label>
+        <input id="id" type="email" autocomplete="username" required />
         <label for="pw">Mot de passe *</label>
         <input id="pw" type="password" autocomplete="${setup ? 'new-password' : 'current-password'}" required />
         <div class="form-actions"><button class="btn btn-primary" type="submit">${setup ? 'Créer le compte' : 'Se connecter'}</button></div>
       </form>
-      <p class="muted" style="text-align:center">${setup ? 'Premier lancement : créez votre compte (mono-foyer).' : ''}</p>
+      <p class="auth-legend muted">* champ obligatoire</p>
+      ${setup
+        ? '<p class="muted" style="text-align:center">Premier lancement : créez votre compte (mono-foyer).</p>'
+        : '<p class="auth-links"><a href="#" id="forgotlink">Mot de passe oublié ?</a></p>'}
     </div></div>`;
   $('#authform').onsubmit = async (e) => {
     e.preventDefault();
@@ -142,6 +146,63 @@ function renderAuth(s) {
       await api('POST', setup ? '/setup' : '/login', { identifiant: $('#id').value, password: $('#pw').value });
       render();
     } catch (err) { $('#autherr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
+  };
+  const fl = $('#forgotlink');
+  if (fl) fl.onclick = (e) => { e.preventDefault(); renderAuth(s, 'reset'); };
+}
+
+// Réinitialisation locale (sans SMTP) : l'email demande un code à usage unique inscrit dans
+// le journal du serveur (accès machine = preuve de légitimité), qu'on saisit ensuite avec le
+// nouveau mot de passe. Voir /api/forgot et /api/reset côté serveur.
+function renderReset(s) {
+  app.innerHTML = `
+    <div class="auth-page"><div class="card auth-card">
+      <div class="logo">🎗️</div>
+      <h1>Mot de passe oublié</h1>
+      <p class="sub">Réinitialisation locale, sans email</p>
+      <div id="reseterr"></div>
+      <div class="alert alert-info">
+        Cette application est <strong>auto-hébergée et n'envoie pas d'email</strong>.
+        Saisissez votre email : un <strong>code à usage unique</strong> sera inscrit dans le
+        <strong>journal du serveur</strong> (l'accès à la machine prouve que vous êtes bien le foyer).
+      </div>
+      <form id="forgotform">
+        <label for="rid">Email *</label>
+        <input id="rid" type="email" autocomplete="username" required />
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Recevoir un code</button></div>
+      </form>
+      <form id="resetform" class="hidden">
+        <p class="muted">Code inscrit dans le journal du serveur. Pour le lire :<br>
+          <code>docker logs listdons_app --tail 20</code></p>
+        <label for="rcode">Code à usage unique *</label>
+        <input id="rcode" autocomplete="one-time-code" required />
+        <label for="rpw">Nouveau mot de passe *</label>
+        <input id="rpw" type="password" autocomplete="new-password" required />
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Réinitialiser</button></div>
+      </form>
+      <p class="auth-legend muted">* champ obligatoire</p>
+      <p class="auth-links"><a href="#" id="backlogin">← Retour à la connexion</a></p>
+    </div></div>`;
+  $('#backlogin').onclick = (e) => { e.preventDefault(); renderAuth(s, 'login'); };
+  $('#forgotform').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api('POST', '/forgot', { identifiant: $('#rid').value });
+      $('#reseterr').innerHTML = `<div class="alert alert-info">${esc(r.message || 'Code généré — consultez le journal du serveur.')}</div>`;
+      const rf = $('#resetform');
+      rf.dataset.email = $('#rid').value;
+      $('#forgotform').classList.add('hidden');
+      rf.classList.remove('hidden');
+      $('#rcode').focus();
+    } catch (err) { $('#reseterr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
+  };
+  $('#resetform').onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api('POST', '/reset', { identifiant: $('#resetform').dataset.email, code: $('#rcode').value, password: $('#rpw').value });
+      renderAuth(s, 'login');
+      $('#autherr').innerHTML = '<div class="alert alert-info">Mot de passe réinitialisé. Vous pouvez vous connecter.</div>';
+    } catch (err) { $('#reseterr').innerHTML = `<div class="alert alert-error">${esc(err.message)}</div>`; }
   };
 }
 

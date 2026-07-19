@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const store = require('./lib/store');
 const db = store.load();
 
-db.utilisateur = { identifiant: 'demo', hash: bcrypt.hashSync('demo123', 10) };
+db.utilisateur = { identifiant: 'demo@list-dons.fr', hash: bcrypt.hashSync('demo123', 10) };
 db.exercices = [{ annee: 2025, revenuImposable: 6000000, statut: 'en_cours' }];
 
 const mk = (nom, categorie, identifiant = '') => ({ id: store.uid(), nom, identifiant, categorie, habiliteRecu: true, notes: '', indicateurSuivi: 'neutre', archive: false });
@@ -18,4 +18,4 @@ db.dons = [don(alpha, '2025-11-13', 50), don(beta, '2025-11-28', 50), don(gamma,
 db.appreciations = []; db.recurrents = [];
 
 store.save();
-console.log('Seed OK — compte demo / demo123, exercice 2025, 3 dons (réduction attendue 105,60 €).');
+console.log('Seed OK — compte demo@list-dons.fr / demo123, exercice 2025, 3 dons (réduction attendue 105,60 €).');

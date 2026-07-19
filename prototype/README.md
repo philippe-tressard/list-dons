@@ -6,7 +6,7 @@
 
 ## Ce qui fonctionne
 
-- **Authentification** mono-foyer (création du compte au 1er lancement, connexion, déconnexion, session cookie).
+- **Authentification** mono-foyer (création du compte au 1er lancement, connexion par **email**, déconnexion, session cookie). **Mot de passe oublié** : réinitialisation locale sans email — un **code à usage unique** est inscrit dans le journal du serveur (accès machine = preuve de légitimité), à saisir avec le nouveau mot de passe. Écran de connexion avec légende « * champ obligatoire ».
 - **Exercices** (années d'imposition) : création, sélection.
 - **Interface responsive** : sur mobile, les tableaux se replient en cartes empilées (libellé/valeur) ; en-têtes, formulaires et graphiques s'adaptent.
 - **Consultation au clic** : toucher un don ou un bénéficiaire ouvre une **fiche détail complète** (tout ce qui est saisi, pièces jointes) avec les actions Éditer / Supprimer.

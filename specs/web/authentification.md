@@ -47,8 +47,11 @@
 - Politique de mot de passe minimale (longueur, indicateur de robustesse) sans exigences absurdes.
 
 ## Réinitialisation du mot de passe
-- **Sans domaine ni SMTP (par défaut)** : réinitialisation **locale** — jeton à usage unique généré par l'opérateur via une **commande de maintenance** (accès à la machine = preuve de légitimité pour un usage mono-foyer auto-hébergé).
-- **Si SMTP configuré** (optionnel) : lien de réinitialisation par email.
+- **Sans domaine ni SMTP (par défaut)** : réinitialisation **locale**. Lien **« Mot de passe oublié ? »** sur l'écran de connexion → l'utilisateur saisit son **email** ; le serveur génère un **code à usage unique** (validité 15 min, 5 essais max) qu'il **inscrit dans son journal** (`docker logs listdons_app`). Seul quelqu'un ayant **accès à la machine** (le foyer) peut le lire → preuve de légitimité. L'utilisateur saisit ensuite ce code + son nouveau mot de passe. Réponses **non énumérantes** (ne révèlent jamais si le compte existe). Endpoints : `POST /api/forgot`, `POST /api/reset`.
+- **Si SMTP configuré** (optionnel, futur) : lien de réinitialisation par email.
+
+## Identifiant
+- L'identifiant du compte est un **email** (champ `type="email"`, libellé « Email * »). L'écran de connexion affiche une **légende « * champ obligatoire »**.
 
 ## Hors périmètre MVP (simplicité)
 - Multi-utilisateur / rôles, inscription publique, OAuth/SSO.
