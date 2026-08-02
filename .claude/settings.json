@@ -5,10 +5,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash .claude/env-report.sh",
+            "command": "bash .claude/env-report.sh; cat .claude/list-dons-preflight.md",
             "shell": "bash",
             "timeout": 10,
-            "statusMessage": "Environnement List-dons…"
+            "statusMessage": "Environnement + consignes List-dons…"
           }
         ]
       }
