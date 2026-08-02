@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/env-report.sh; cat .claude/list-dons-preflight.md",
+            "shell": "bash",
+            "timeout": 10,
+            "statusMessage": "Environnement + consignes List-dons…"
+          }
+        ]
+      }
+    ]
+  }
+}
