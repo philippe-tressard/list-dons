@@ -1,6 +1,6 @@
 {
   "name": "list-dons-prototype",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Prototype fonctionnel (Node) de List-dons — pour tester l'UX et le moteur fiscal. Implémentation cible : Rust (voir specs).",
   "type": "commonjs",
