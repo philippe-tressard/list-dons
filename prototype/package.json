@@ -1,6 +1,6 @@
 {
   "name": "list-dons-prototype",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "List-dons — dons et réduction d'impôt, mono-foyer, auto-hébergé (Node/Express, stockage JSON).",
   "type": "commonjs",
