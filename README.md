@@ -48,6 +48,18 @@ Application **mono-foyer**, **auto-hébergée**, **accès local (LAN)**, **inter
 - Index : [`SPECIFICATIONS.md`](SPECIFICATIONS.md) (source de vérité)
 - Détail par domaine : [`specs/`](specs/) — contexte, architecture, design, exigences
 
+## Contrôles
+
+Chaque contribution passe par la CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). Un contrôle qui ne peut pas s'exécuter échoue, il ne passe jamais.
+
+| Contrôle | Ce qu'il refuse |
+|---|---|
+| Moteur fiscal | une évolution qui change le résultat de la fixture 2025 (105,60 €) ou applique un barème à une autre année |
+| Données personnelles | toute identité (courriel, organisme, civilité + nom, prénom suivi d’un nom en capitales, nom de fixture) absente de la liste blanche [`scripts/identites-fictives.json`](scripts/identites-fictives.json) |
+| Secrets | tout secret détecté par gitleaks dans **tout** l'historique, et un scan qui n'aurait pas lu tous les commits |
+
+En local : `node scripts/verifier-donnees-fictives.js` et, depuis `prototype/`, `node lib/fiscal.selftest.js`.
+
 ## Avertissement
 
 Outil d'**estimation** indicatif : il ne remplace ni votre déclaration officielle ni un conseil fiscal.

@@ -1,0 +1,57 @@
+# Contrôles de List-dons. Chaque job est un garde-fou qui échoue : une consigne ne se
+# maintient pas seule (standards/05). Un contrôle qui ne peut pas s'exécuter échoue,
+# il ne passe jamais (standards/04 §1). Ce qu'il contrôle et pourquoi : README, « Contrôles ».
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  moteur-fiscal:
+    name: Moteur fiscal (auto-test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fixture 2025 et isolation des barèmes par année
+        working-directory: prototype
+        run: node lib/fiscal.selftest.js
+
+  donnees-fictives:
+    name: Données personnelles (liste blanche)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Autotest du contrôle (chaque règle mord)
+        run: node scripts/verifier-donnees-fictives.js --autotest
+      - name: Aucune identité hors de scripts/identites-fictives.json
+        run: node scripts/verifier-donnees-fictives.js
+
+  secrets:
+    name: Secrets (gitleaks, tout l'historique)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks sur toutes les branches et tous les commits
+        run: |
+          set -o pipefail
+          attendu=$(git rev-list --all --count)
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.18.4 \
+            detect --source=/repo --log-opts="--all" --redact --verbose 2>&1 | tee gitleaks.log
+          # Un scan qui n'a pas lu tout l'historique n'est pas un vert : on compare.
+          lu=$(grep -oE '[0-9]+ commits scanned' gitleaks.log | grep -oE '^[0-9]+' || true)
+          echo "Commits dans le dépôt : $attendu ; lus par gitleaks : ${lu:-aucun}"
+          [ "$lu" = "$attendu" ] || { echo "INCONNU : gitleaks n'a pas lu tout l'historique."; exit 1; }

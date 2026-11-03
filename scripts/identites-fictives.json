@@ -1,0 +1,34 @@
+{
+  "_pourquoi": "Liste blanche des identités autorisées dans les fichiers versionnés (standards/14 §9). Toute autre identité repérée fait échouer la CI. Jamais de liste noire : elle compilerait les vrais noms. Ajouter une entrée = la déclarer fictive, ou publique par nature (auteur du logiciel).",
+  "courriels": {
+    "demo@list-dons.fr": "compte de démonstration du seed (domaine fictif)"
+  },
+  "beneficiaires": {
+    "Association Alpha": "bénéficiaire fictif de l'exemple fiscal 2025 (SPECIFICATIONS.md §6.7)",
+    "Association Bêta": "bénéficiaire fictif de l'exemple fiscal 2025",
+    "Parti Gamma": "bénéficiaire fictif de l'exemple fiscal 2025"
+  },
+  "personnes": {},
+  "sigles": [
+    "APRÈS",
+    "AVANT",
+    "CLAUDE",
+    "CSRF",
+    "CTA",
+    "IHM",
+    "JSON",
+    "JWT",
+    "LAN",
+    "MEP",
+    "MIT",
+    "MVP",
+    "OWASP",
+    "PDF",
+    "PER",
+    "PUBLIC",
+    "README",
+    "RUP",
+    "SIMPLE",
+    "SMTP"
+  ]
+}
