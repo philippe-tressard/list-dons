@@ -167,7 +167,7 @@ L'utilisateur cible est un **particulier non-expert**. L'app démarre dans son c
 Les **justificatifs de dons sont pris en charge par l'app** : ils y sont **stockés, rattachés au don, consultables et conservés** (l'administration peut les réclamer plusieurs années après).
 
 - **Attachement** : chaque **Don** peut porter **un ou plusieurs justificatifs** (reçu CERFA/PDF, image scannée/photo). Formats acceptés : **PDF, JPG, PNG** (taille max configurable).
-- **Stockage local** : fichiers dans `/opt/list-dons/uploads` (hors base), **nom de fichier assaini** + identifiant unique (protection **path traversal**, cf. §10). La base ne stocke que les métadonnées (chemin, type, taille, hash, n° de reçu, date d'ajout).
+- **Stockage local** : fichiers dans `uploads/` du volume `listdons_data` (hors base), **nom de fichier assaini** + identifiant unique (protection **path traversal**, cf. §10). La base ne stocke que les métadonnées (chemin, type, taille, hash, n° de reçu, date d'ajout).
 - **Métadonnées de reçu** : n° de reçu, date du versement, montant, émetteur — saisis ou **pré-remplis par lecture du fichier** (cf. OCR/contrôle de cohérence, backlog §7).
 - **Consultation** : prévisualisation / téléchargement du justificatif depuis la fiche du don et depuis la synthèse annuelle.
 - **Statut** : chaque don affiche **reçu présent / manquant** ; un **rappel des reçus manquants** est proposé avant la déclaration (backlog §7).
@@ -419,14 +419,14 @@ Les deux applications partagent la machine, **rien d'autre**. Invariants à resp
 
 | Ressource | 5Hostachy (existant) | List-dons | Règle |
 |---|---|---|---|
-| Répertoire | `/opt/5hostachy` | `/opt/list-dons` | Chemins disjoints |
+| Répertoire | `/opt/5hostachy` | `~/list-dons` | Chemins disjoints |
 | Projet Compose | `hostachy` | `listdons` | `-p listdons`, fichiers séparés |
 | Conteneurs | `hostachy_*` | `listdons_*` | Aucune collision de nom |
 | Réseau Docker | `hostachy` | `listdons` | Réseaux bridge distincts |
 | Volumes | `caddy_data`, `app_data`, `uploads`… | `listdons_data`, `listdons_uploads`… | Préfixés, jamais partagés |
 | Ports hôte | `80`, `443` | `8080`/`8443` (Caddy dédié) | List-dons **ne prend jamais** 80/443 |
 | Cron / ops | scripts propres (en root) | scripts propres `listdons-*` | **Aucun** hook croisé |
-| Sauvegardes | *(les siennes)* | `/opt/list-dons/backups` | Sauvegardes indépendantes |
+| Sauvegardes | *(les siennes)* | `~/list-dons/backups` | Sauvegardes indépendantes |
 
 - **Ne pas dépendre de 5Hostachy** : List-dons doit **rester up en continu sur le RPi2**, quel que soit l'état actif/standby de 5Hostachy (y compris si celui-ci bascule entre nœuds). Ses conteneurs sont en `restart: unless-stopped` et son cycle de vie est piloté par **son propre** Compose uniquement.
 - **Limites de ressources obligatoires** : le RPi5 est modeste ; List-dons **DOIT** déclarer des limites `deploy.resources` (CPU/RAM) plafonnées, pour **garantir la priorité à 5Hostachy** en toute circonstance. L'empreinte de Node.js reste compatible avec ce plafond sur ce périmètre mono-foyer.
@@ -501,7 +501,7 @@ Les deux applications partagent la machine, **rien d'autre**. Invariants à resp
 - **Migrations** jouées automatiquement au démarrage.
 - **Observabilité** : endpoint `/api/health`, logs structurés (sans données personnelles), rotation des logs.
 - **Résilience — niveau SIMPLE (décidé)** : `restart: unless-stopped` suffit. **Pas** de monitoring/alerting/failover (surdimensionné pour un usage perso LAN, et réduit le risque d'interférence avec l'autre application). Un endpoint `/health` basique est admis, sans alerting.
-- **Sauvegardes (obligatoires)** : sauvegarde **quotidienne automatique** de la base JSON + reçus vers `/opt/list-dons/backups`, rotation, et **procédure de restauration testée** et documentée. C'est le vrai filet de sécurité d'un usage perso.
+- **Sauvegardes (obligatoires)** : sauvegarde **quotidienne automatique** de la base JSON + reçus vers `~/list-dons/backups`, rotation, et **procédure de restauration testée** et documentée. C'est le vrai filet de sécurité d'un usage perso.
 - **Sécurité infra** : n'exposer que 80/443 ; SSH restreint au LAN ; mises à jour mensuelles.
 - **Documentation** : README, guide d'auto-hébergement, `.env.example`, CONTRIBUTING, SECURITY.
 

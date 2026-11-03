@@ -29,8 +29,8 @@ C'est là que vivent désormais les pratiques longtemps désignées comme « hé
 
 ### Isolation sur rpi2 — non négociable
 
-L'application est **co-hébergée avec 5Hostachy sur le rpi2** (`192.168.1.223`), qui
-reste **prioritaire**. Règle générale : `standards/03-securite.md` §6. Instanciation :
+L'application est **co-hébergée avec 5Hostachy sur le rpi2** (`192.168.1.x`), qui
+reste **prioritaire**. Règle générale : `standards/03-securite.md` §7. Instanciation :
 projet Compose `listdons`, conteneur `listdons_app`, réseau `listdons_net`, volume
 `listdons_data`, port **8080** (jamais 80/443), dossier `~/list-dons` (pas `/opt`, pas
 de `sudo`), ressources plafonnées, cron propre. **Aucun couplage** avec `bascule.sh`
@@ -49,7 +49,7 @@ et réseaux du voisin.
   héritage N ← N-1 si aucune règle spécifique. Même principe que l'isolation des
   décisions critiques : `standards/04-fiabilite-des-controles.md` §11.
 - **Montants en centimes** (entiers), jamais en flottant —
-  `standards/06-donnees-et-integrite.md` §5.
+  `standards/06-donnees-et-integrite.md` §7.
 - **Aucun chiffre fiscal non sourcé** : barèmes vérifiés via Légifrance, avec la
   référence écrite à côté de la valeur (`standards/12-documentation.md` §4).
 - **Principe de prudence** : en cas de doute, l'estimation **sous-estime**. Mention
@@ -72,7 +72,7 @@ duplication, règle des 3, refactoring continu. C'est
 
 ### Documentation publique
 
-Le dépôt est public : **aucune donnée personnelle**, exemples fictifs, adresses LAN
+Le dépôt est destiné à être public (privé à ce jour, ticket #10) : **aucune donnée personnelle**, exemples fictifs, adresses LAN
 masquées — `standards/12-documentation.md` §7. Les specs peuvent dire qu'elles
 s'inspirent de 5Hostachy, mais restent **instanciées à List-dons** : pas de copie, pas
 de tableau comparatif.

@@ -13,8 +13,8 @@
 
 2. À CHARGER SELON LA TÂCHE :
    • Spécifications      → SPECIFICATIONS.md (index) + specs/
-   • Déploiement rpi2    → standards/03-securite.md §6 + deploy/deploy-rpi2.sh
-   • Moteur fiscal       → specs/ + standards/06-donnees-et-integrite.md §5
+   • Déploiement rpi2    → standards/03-securite.md §7 + deploy/deploy-rpi2.sh
+   • Moteur fiscal       → specs/ + standards/06-donnees-et-integrite.md §7
    • Code / UI           → standards/02-factorisation.md + 11-interface-et-ux.md
    • Avant tout commit   → skill `avant-commit`
 
@@ -27,7 +27,7 @@
    • Montants en CENTIMES (entiers), jamais en flottant.
    • Aucun chiffre fiscal non sourcé : référence Légifrance + date d'effet à côté de
      la valeur. Principe de prudence : en cas de doute, l'estimation SOUS-ESTIME.
-   • Dépôt PUBLIC : aucune donnée personnelle, exemples fictifs, IP LAN masquées.
+   • Dépôt destiné au public : aucune donnée personnelle, exemples fictifs, IP LAN masquées.
    • Décision : agir sans demander sur le réversible ; ne solliciter que pour
      l'irréversible (données, push/PR sur main, envoi, action prod durable).
    • Langue : français exclusif (interface + nommage des champs).

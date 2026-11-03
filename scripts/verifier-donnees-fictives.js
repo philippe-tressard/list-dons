@@ -4,7 +4,8 @@
  * Aucune donnée personnelle réelle dans les fichiers versionnés (standards/14 §9).
  *
  * Toute identité repérée — courriel, organisme bénéficiaire, civilité + nom,
- * « Prénom NOM », nom passé à une fixture — doit figurer dans la LISTE BLANCHE
+ * « Prénom NOM », nom passé à une fixture, adresse IP du réseau local, dossier
+ * personnel — doit figurer dans la LISTE BLANCHE
  * `scripts/identites-fictives.json`. Hors de cette liste, la CI échoue.
  *
  * Pourquoi (audit avant publication du 03/11/2026, ticket #8) : le dépôt va devenir
@@ -60,6 +61,19 @@ const REGLES = [
     motif: /\b(?:mk|beneficiaire)\(\s*['"]([^'"]+)['"]|\bnom\s*[:=]\s*['"]([^'"]+)['"]/gu,
     valeur: (m) => m[1] || m[2],
     autorise: (v) => v in LISTE.beneficiaires,
+  },
+  // Infrastructure du foyer (ticket #3) : une adresse exacte du réseau local, un compte
+  // SSH ou un dossier personnel désignent la machine réelle. La documentation écrit
+  // `192.168.1.x`, `<utilisateur>@<ip-du-rpi2>` et `~/…` ou `$HOME/…`.
+  {
+    nom: 'adresse IP privée',
+    motif: /(?<![\d.])(?:192\.168|10\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}(?![\d.])/gu,
+    autorise: () => false,
+  },
+  {
+    nom: 'dossier personnel',
+    motif: /\/(?:home|Users)\/[A-Za-z0-9_.-]+/gu,
+    autorise: (v) => v in LISTE.dossiers,
   },
 ];
 
@@ -124,6 +138,11 @@ function autotest() {
     ['format Fichier JSON', 'Prénom NOM', false],
     ["mk('Les Amis du Quartier', 'ir_general')", 'nom de fixture', true],
     ["mk('Parti Gamma', 'ir_partis')", 'nom de fixture', false],
+    ['le nœud répond sur 192.168.1.42', 'adresse IP privée', true],
+    ['le nœud répond sur 192.168.1.x', 'adresse IP privée', false],
+    ['ssh admin@10.0.0.7', 'adresse IP privée', true],
+    ['cron : /home/alice/list-dons/backup.sh', 'dossier personnel', true],
+    ['cron : $HOME/list-dons/backup.sh', 'dossier personnel', false],
   ];
   let echecs = 0;
   for (const [texte, regle, fautif] of cas) {

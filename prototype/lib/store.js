@@ -1,7 +1,7 @@
 'use strict';
 /**
  * Persistance prototype : un simple fichier JSON (data/db.json).
- * Suffisant pour un usage mono-foyer de test. L'implémentation cible utilise SQLite.
+ * Stockage retenu pour l'usage mono-foyer (décision du 19/07/2026) ; la cible SQLite est abandonnée.
  */
 const fs = require('fs');
 const path = require('path');

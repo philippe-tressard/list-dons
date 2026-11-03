@@ -5,13 +5,13 @@
 #  Dump (base JSON + uploads + secret) du volume Docker `listdons_data` vers
 #  ~/list-dons/backups, en .tar.gz horodaté, avec rotation.
 #
-#  Isolation (comme le reste de List-dons) : tourne en `ptressard`, ne touche
+#  Isolation (comme le reste de List-dons) : tourne sous le compte de déploiement, ne touche
 #  QUE le volume listdons_data (monté en lecture seule) et le dossier backups.
 #  N'interagit avec AUCUNE ressource hostachy_*.
 #
-#  Cron suggéré (crontab ptressard) :
-#     15 4 * * * /home/ptressard/list-dons/deploy/backup-listdons.sh \
-#                  >> /home/ptressard/list-dons/backups/backup.log 2>&1
+#  Cron suggéré (crontab du compte de déploiement) :
+#     15 4 * * * $HOME/list-dons/deploy/backup-listdons.sh \
+#                  >> $HOME/list-dons/backups/backup.log 2>&1
 # =============================================================================
 set -euo pipefail
 
