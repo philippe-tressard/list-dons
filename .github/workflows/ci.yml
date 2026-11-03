@@ -41,6 +41,21 @@ jobs:
       - name: Aucune dépendance de production vulnérable (high ou critical)
         run: npm audit --omit=dev --audit-level=high
 
+  image:
+    name: Image de production (contenu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construire l'image comme en production
+        run: docker build -t listdons-ci prototype
+      - name: Ni seed de démonstration ni tests dans l'image
+        run: |
+          # Témoin positif d'abord : un contrôle qui ne trouverait pas server.js ne prouverait rien.
+          docker run --rm --entrypoint sh listdons-ci -c 'test -f /app/server.js' \
+            || { echo "INCONNU : /app/server.js absent, l'image n'est pas celle attendue."; exit 1; }
+          docker run --rm --entrypoint sh listdons-ci -c 'test ! -e /app/seed.js && test ! -e /app/test' \
+            || { echo "seed.js ou test/ présent dans l'image de production (ticket #7)."; exit 1; }
+
   donnees-fictives:
     name: Données personnelles (liste blanche)
     runs-on: ubuntu-latest

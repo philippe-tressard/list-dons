@@ -56,6 +56,7 @@ Chaque contribution passe par la CI ([`.github/workflows/ci.yml`](.github/workfl
 |---|---|
 | Moteur fiscal | une évolution qui change le résultat de la fixture 2025 (105,60 €) ou applique un barème à une autre année |
 | Application | une régression du téléversement des reçus (nom accentué, taille, session) ou du récapitulatif PDF, et toute dépendance de production à vulnérabilité **high** ou **critical** (`npm audit`) |
+| Image de production | une image qui embarquerait le seed de démonstration ou les tests |
 | Données personnelles | toute identité (courriel, organisme, civilité + nom, prénom suivi d’un nom en capitales, nom de fixture) absente de la liste blanche [`scripts/identites-fictives.json`](scripts/identites-fictives.json) |
 | Secrets | tout secret détecté par gitleaks dans **tout** l'historique, et un scan qui n'aurait pas lu tous les commits |
 
