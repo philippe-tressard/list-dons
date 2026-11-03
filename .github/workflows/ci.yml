@@ -56,6 +56,24 @@ jobs:
           docker run --rm --entrypoint sh listdons-ci -c 'test ! -e /app/seed.js && test ! -e /app/test' \
             || { echo "seed.js ou test/ présent dans l'image de production (ticket #7)."; exit 1; }
 
+  licences:
+    name: Licences (REUSE, inventaire des dépendances)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Chaque fichier déclare sa licence (REUSE)
+        run: |
+          pip install --quiet reuse==6.2.0
+          reuse lint
+      - name: Inventaire des licences à jour et admis
+        run: node scripts/inventaire-licences.js --verifier
+
   donnees-fictives:
     name: Données personnelles (liste blanche)
     runs-on: ubuntu-latest
