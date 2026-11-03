@@ -44,6 +44,14 @@ node lib/fiscal.selftest.js
 
 Auto-test sans dépendance : fixture de référence (specs §6.7) + isolation du barème par année (un barème ajouté pour une année future n'affecte jamais les exercices antérieurs).
 
+## Tests de l'application
+
+```bash
+npm test
+```
+
+Lance une instance isolée du serveur (dossier de données temporaire via `LISTDONS_DATA_DIR`, port libre — jamais les données réelles) et vérifie le téléversement des reçus (nom accentué conservé, taille maximale de 15 Mo, session obligatoire) et la génération du récapitulatif PDF.
+
 ## Limites (assumées, MVP)
 
 - Persistance = fichier JSON, désormais **avec écriture atomique + filet `.bak`** (cible : SQLite — non requis tant que l'usage reste mono-foyer). Hachage = bcrypt (cible : Argon2).

@@ -6,7 +6,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+// LISTDONS_DATA_DIR : dossier de données d'un test, jamais celui de l'instance (défaut : data/).
+const DATA_DIR = process.env.LISTDONS_DATA_DIR || path.join(__dirname, '..', 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
