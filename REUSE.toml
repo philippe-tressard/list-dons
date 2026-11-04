@@ -1,0 +1,11 @@
+# Licence de chaque fichier du dépôt, lisible par machine (spécification REUSE 3.3).
+# Tout le dépôt est sous MIT, par son auteur ; un fichier repris ailleurs se déclare
+# ici par une annotation plus précise, ou par son propre en-tête SPDX.
+# Contrôle : `reuse lint`, en CI (job « Licences »).
+version = 1
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Philippe Tressard"
+SPDX-License-Identifier = "MIT"
