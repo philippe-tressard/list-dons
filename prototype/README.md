@@ -44,6 +44,14 @@ node lib/fiscal.selftest.js
 
 Auto-test sans dépendance : fixture de référence (specs §6.7) + isolation du barème par année (un barème ajouté pour une année future n'affecte jamais les exercices antérieurs).
 
+## Base de démonstration
+
+```bash
+LISTDONS_DATA_DIR=/tmp/listdons-demo node seed.js
+```
+
+Crée le compte de démonstration et l'exemple fiscal 2025 (fictif, specs §6.7). Le script **refuse** une base qui contient déjà des données, puisqu'il les remplacerait ; `--ecraser` force, sur demande explicite. Il n'est pas copié dans l'image de production.
+
 ## Tests de l'application
 
 ```bash
