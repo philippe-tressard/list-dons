@@ -269,7 +269,7 @@ function blocPlafond20(est, ex) {
     const cls = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'ok';
     return `
       <p style="margin:.5rem 0 .2rem">
-        <strong>Plafond ${pctLabel} % du revenu</strong> (dons « intérêt général », base ${fmt(est.baseEligible20)} / plafond ${fmt(est.plafond20)}) — <span class="muted">${pct} %</span>
+        <strong>Plafond ${pctLabel} % du revenu</strong> (dons d’intérêt général et aux partis, base ${fmt(est.baseEligible20)} / plafond ${fmt(est.plafond20)}) — <span class="muted">${pct} %</span>
         <button type="button" class="btn-link" id="editrevenu" title="Modifier le revenu imposable">✏️</button>
       </p>
       <div class="progress"><div class="progress-bar ${cls}" style="width:${Math.min(pct, 100)}%"></div></div>
@@ -720,7 +720,7 @@ async function tabParams() {
       <td data-label="Exercice">${b.annee} ${src}</td>
       <td data-label="Intérêt général">${Math.round(g.taux * 100)} % · plafond ${Math.round(g.plafond.valeur * 100)} % du revenu</td>
       <td data-label="Coluche">${Math.round(co.taux * 100)} % · plafond ${fmt(co.plafond.valeur)}</td>
-      <td data-label="Partis politiques">${Math.round(pa.taux * 100)} % · plafond ${fmt(pa.plafond.valeur)}</td>
+      <td data-label="Partis politiques">${Math.round(pa.taux * 100)} % · plafond ${fmt(pa.plafond.valeur)}, dans les ${Math.round(g.plafond.valeur * 100)} % du revenu</td>
     </tr>`;
   }).join('');
 
@@ -729,7 +729,7 @@ async function tabParams() {
       <h2>Barèmes fiscaux par exercice</h2>
       <p class="muted">Règles réellement appliquées à chacun de vos exercices. Une année sans barème propre hérite automatiquement du plus récent barème antérieur — jamais l'inverse : un changement de règle ne peut pas s'appliquer rétroactivement à un exercice déjà clos.</p>
       <table class="responsive"><thead><tr><th>Exercice</th><th>Intérêt général</th><th>Coluche</th><th>Partis politiques</th></tr></thead><tbody>${rows}</tbody></table>
-      <p class="muted">Excédent de dons « intérêt général » au-delà du plafond du revenu imposable : reportable sur ${baremes[0]?.reportAnnees ?? 5} ans sur votre déclaration officielle (non suivi automatiquement dans l'app — voir le tableau de bord de l'exercice concerné).</p>
+      <p class="muted">Excédent des dons d’intérêt général et aux partis au-delà du plafond du revenu imposable : reportable sur ${baremes[0]?.reportAnnees ?? 5} ans sur votre déclaration officielle (non suivi automatiquement dans l'app — voir le tableau de bord de l'exercice concerné).</p>
     </div>
     <div class="card">
       <h2>À propos</h2>

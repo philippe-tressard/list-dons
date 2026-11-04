@@ -46,6 +46,7 @@
 | 2026-07-19 | 3.5     | Claude | **Durcissement « passage en prod » — étape 1/2** (le MVP n'est plus jetable ; objectif : robustesse à évolutions minimales, sans changer d'archi ni migrer vers SQLite/Rust). (1) **Écriture atomique de `db.json`** (`store.js`) : fichier temporaire + `fsync` + `rename`, avec conservation d'un **`.bak`** avant chaque écriture et **récupération automatique** au chargement si `db.json` est corrompu (protège des coupures de courant du RPi — testé : corruption simulée → base restaurée). (2) **Rate-limiting + verrouillage** de `/api/login` (fenêtre glissante par IP, 8 essais / 15 min, fait main — zéro dépendance ; testé : 8×401 puis 429). (3) **En-têtes de sécurité** (middleware fait main) : CSP stricte (`script-src 'self'`, `style-src 'unsafe-inline'` pour les styles inline, `img-src data:` pour le favicon), `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Referrer-Policy`. Le `<script>` inline de la page mentions légales est supprimé (année rendue côté serveur via placeholder) pour rester compatible CSP. (4) **Validation serveur stricte** : montant (entier ≥ 0, plus de `NaN` en base), date (`AAAA-MM-JJ` réelle), catégorie fiscale (enum fermé), fréquence récurrente, existence du bénéficiaire — testé (montant/date/benef invalides → 400). **Zéro dépendance ajoutée, aucun changement d'archi.** Non-régression vérifiée (UI sous CSP sans erreur console, PDF OK). **Étape 2 à venir** (après validation utilisateur) : **HTTPS LAN via Caddy `tls internal`** (cookie `Secure`, chiffrement du trafic), dans le respect de l'isolation 5Hostachy (jamais 80/443). |
 | 2026-07-19 | 3.6     | Claude | **« Mot de passe oublié » + clarifications de l'écran de connexion** (demande utilisateur). (1) L'identifiant est explicité comme un **email** : champ `type="email"`, libellé « Email * ». (2) **Légende « * champ obligatoire »** ajoutée sous le formulaire (connexion et réinitialisation). (3) **Réinitialisation locale sans SMTP** (conforme à [`authentification.md`](specs/web/authentification.md) § Réinitialisation) : lien « Mot de passe oublié ? » → saisie de l'email → `POST /api/forgot` génère un **code à usage unique** (8 hex, 15 min, 5 essais max) et l'**inscrit dans le journal du serveur** (l'accès machine = preuve de légitimité pour le foyer) ; l'écran révèle alors la saisie du code + nouveau mot de passe → `POST /api/reset`. Réponses **non énumérantes** (identique que le compte existe ou non). Endpoints hors auth, protégés par le throttle existant. Compte de démo (`seed.js`) passé en email `demo@list-dons.fr` / `demo123` pour rester cohérent avec le champ email. Testé de bout en bout (email inconnu → aucun code ; bon email → code au log ; mauvais code → 400 ; bon code → 200 ; ancien mdp invalidé ; code non rejouable) + IHM au navigateur sans erreur CSP. |
 | 2026-07-19 | 3.7     | Claude | **Abandon définitif de la cible Rust/SvelteKit/SQLite** (décision utilisateur : « je ne le ferai pas »). Le **MVP Node.js/Express + JS vanilla + fichier JSON**, déployé et en usage réel depuis des mois, devient l'**implémentation retenue** — il n'y aura pas de réécriture Rust. **§8 réécrit** : « Architecture technique (proposition, en Rust) » → « Architecture technique (Node.js — implémentation retenue) », décrivant la stack réelle (Express, `lib/store.js` avec écriture atomique, JS vanilla, pdfkit/pdf-lib) au lieu d'une cible hypothétique. Conséquences directes de cet abandon, alignées dans `SPECIFICATIONS.md` et `specs/` (`README.md`, `architecture/stack.md`, `architecture/vue-ensemble.md`, `architecture/principes-code.md`, `architecture/api.md`, `architecture/modele-donnees.md`, `web/exigences-non-fonctionnelles.md`) : **hachage Argon2 → bcrypt** (Argon2 n'était retenu que comme « équivalent Rust moderne de bcrypt » ; bcrypt est ce que l'app utilise réellement) ; **persistance SQLite → fichier JSON** ; retrait des outillages Rust (`cargo`/`clippy`/`rustfmt`/`sqlx`/`cargo-about`) remplacés par leurs équivalents Node réels ou notés « à définir si besoin ». Les entrées de journal antérieures (0.2 à 3.5) qui actaient la cible Rust reflètent l'état des décisions à leur date et **restent inchangées** (registre historique) ; c'est cette entrée qui acte le changement de cap. Le README racine avait déjà été aligné dans un commit précédent. |
+| 2026-11-03 | 3.8     | Claude | **Barème sourcé et corrigé** (tickets #6, #2, audit du 03/11/2026) : chaque valeur porte sa source officielle datée (`SOURCES` dans `lib/fiscal.js`, refusé sans elle par l'auto-test). **Deux surestimations corrigées** : (1) plafond « Coluche » 2025 ramené à **1 000 €** (2 000 € seulement pour les dons à compter du 14/10/2025, répartition intra-année non documentée → prudence) et millésime **2026 propre** à 2 000 € ; (2) dons aux **partis** désormais **dans** la limite des 20 % du revenu, partagée avec l'intérêt général. Bascule de l'art. 200 au 01/09/2026 vérifiée : sans effet. Plafond des dons de campagne (4 600 € par élection) sourcé. |
 
 ---
 
@@ -245,8 +246,8 @@ Bareme {
 | `ir_general` | Fondations/associations **RUP** (a) ; **œuvres/organismes d'intérêt général** — philanthropique, éducatif, scientifique, social, humanitaire, sportif, familial, culturel, égalité F/H, patrimoine artistique, environnement, diffusion de la culture/langue française (b) ; **enseignement supérieur / artistique** d'intérêt général et consulaire (c) ; organismes agréés 238 bis-4 (d) ; **associations cultuelles et de bienfaisance**, cultes reconnus d'Alsace-Moselle (e) ; **spectacle vivant / art contemporain** (f) ; **pluralisme de la presse** (f bis) ; **gestion forestière durable** communes/syndicats (f ter) ; **fonds de dotation** (g) ; **Fondation du patrimoine** — travaux (2 bis) ; organismes **UE/EEE agréés** (4 bis) ; **sauvegarde de biens culturels** en conflit armé (6) | **66 %** | **20 % du revenu imposable** (excédent reportable **5 ans**) |
 | `ir_general_fondation_entreprise` | Dons des **salariés/mandataires sociaux** à la **fondation d'entreprise** de leur groupe (a) | **66 %** | sous-plafond **1 500 €** puis relève de `ir_general` |
 | `ir_coluche` | Organismes **repas gratuits / aide au logement / soins gratuits** aux personnes en difficulté ; **accompagnement & relogement des victimes de violence domestique** (1 ter) | **75 %** puis bascule `ir_general` | **2 000 €** (hors la limite des 20 %) |
-| `ir_partis` | **Cotisations et dons aux partis** politiques via mandataire (3) | **66 %** | **15 000 €** / foyer (dons + cotisations cumulés) |
-| `ir_campagne` | **Dons de campagne** (association de financement électorale / mandataire financier) (3) | **66 %** | plafond propre au Code électoral *(≈ 4 600 € par élection — à confirmer si utilisé)* |
+| `ir_partis` | **Cotisations et dons aux partis** politiques via mandataire (3) | **66 %** | **15 000 €** / foyer (dons + cotisations cumulés), **dans** la limite des 20 % du revenu ([F427](https://www.service-public.gouv.fr/particuliers/vosdroits/F427)) |
+| `ir_campagne` | **Dons de campagne** (association de financement électorale / mandataire financier) (3) | **66 %** | dons retenus dans la limite de **4 600 € par élection** ([F427](https://www.service-public.gouv.fr/particuliers/vosdroits/F427), vérifiée le 15/04/2026) — régime **non implémenté** dans le moteur |
 | `ir_frais_benevolat` | **Frais de bénévolat** avec renonciation au remboursement (barème kilométrique) | **66 %** | dans `ir_general` (20 %) |
 
 > **Cas des associations cultuelles** : le taux **75 %** était un dispositif **temporaire (2 juin 2021 → 31 déc. 2022, loi n° 2021-953 art. 18)**, **non reconduit à ma connaissance pour 2025-2026**. Par défaut → **`ir_general` (66 %)**. À re-vérifier uniquement si tu fais un don cultuel et qu'une LF le réactive.
@@ -270,9 +271,9 @@ Réservé aux **entreprises**. L'application cible un **particulier** → **non 
 | Régime | Taux | Plafond | Case 2042 RICI | Notes |
 |---|---|---|---|---|
 | **`ir_general`** | **66 %** | **20 % du revenu imposable** | **7UF** | excédent reportable 5 ans |
-| **`ir_coluche`** | **75 %** puis bascule **66 %** | **2 000 €** pour les dons **du 14/10/2025 au 31/12/2025** · **1 000 €** avant le 14/10/2025 *(transitoire, à confirmer)* | **7UD** | plafond hors des 20 % |
-| **`ir_partis`** | **66 %** | **15 000 €** (dons + cotisations aux partis) | **7UH** | — |
-| **`ir_campagne`** | **66 %** | *plafond Code électoral (à confirmer si utilisé)* | 7UH | compte de campagne |
+| **`ir_coluche`** | **75 %** puis bascule **66 %** | **1 000 €** retenu par le moteur. La loi fixe 1 000 € avant le 14/10/2025 et **2 000 €** à compter de cette date (BOFiP ACTU-2026-00019), mais la répartition d'une même année entre les deux plafonds n'est pas documentée : **prudence**, l'estimation sous-estime | **7UD** | plafond hors des 20 % |
+| **`ir_partis`** | **66 %** | **15 000 €** (dons + cotisations aux partis), **et** dans la limite des 20 % du revenu partagée avec `ir_general` | **7UH** | fraction au-delà de 15 000 € non reportable |
+| **`ir_campagne`** | **66 %** | 4 600 € par élection (non implémenté) | 7UH | compte de campagne |
 
 > Cases **usuelles de la 2042 RICI** (voir l'exemple §6.7). Associations cultuelles : **66 %** (`ir_general`, case 7UF) — le dispositif temporaire 75 % a pris fin le 31/12/2022 (cf. §6.2).
 
@@ -282,9 +283,9 @@ Réservé aux **entreprises**. L'application cible un **particulier** → **non 
 |---|---|---|---|
 | **Général** | **66 %** | **20 % du revenu imposable** | excédent reportable 5 ans |
 | **Coluche** (+ violence domestique) | **75 %** puis **66 %** | **2 000 €** (plein exercice) | plafond hors des 20 % |
-| **Partis / campagnes** | **66 %** | **15 000 €** | — |
+| **Partis / campagnes** | **66 %** | **15 000 €**, dans la limite des 20 % du revenu | — |
 
-> Les valeurs 2026 reprennent la LF 2026 (art. 200 en vigueur au 15/07/2026). À re-vérifier avant la campagne déclarative 2027 (une LF rectificative peut modifier). Le dispositif temporaire cultes est **à confirmer** pour 2026.
+> Les valeurs 2026 reprennent la LF 2026 : millésime **2026 propre** dans le moteur depuis le 03/11/2026 (plafond « Coluche » 2 000 € sur tout l'exercice). Sources : [CGI art. 200](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053543932) (version en vigueur depuis le 21/02/2026, loi n° 2026-103), [BOFiP ACTU-2026-00019](https://bofip.impots.gouv.fr/doctrine/pgp/14951-PGP), service-public [F426](https://www.service-public.gouv.fr/particuliers/vosdroits/F426) et [F427](https://www.service-public.gouv.fr/particuliers/vosdroits/F427) — consultés le 03/11/2026. Les mêmes références sont écrites à côté de chaque valeur dans `prototype/lib/fiscal.js` (`SOURCES`), et l'auto-test refuse une valeur sans source. À re-vérifier avant la campagne déclarative 2027 (une LF rectificative peut modifier). Le dispositif temporaire cultes est **à confirmer** pour 2026.
 
 ### 6.5 Barème 2027 (revenus 2027 · déclaration 2028) — *provisoire, hérité de 2026*
 
@@ -294,16 +295,16 @@ Réservé aux **entreprises**. L'application cible un **particulier** → **non 
 |---|---|---|---|
 | **Général** | **66 %** | **20 % du revenu imposable** | reportable 5 ans |
 | **Coluche** (+ violence domestique) | **75 %** puis **66 %** | **2 000 €** | plafond hors des 20 % |
-| **Partis / campagnes** | **66 %** | **15 000 €** | — |
+| **Partis / campagnes** | **66 %** | **15 000 €**, dans la limite des 20 % du revenu | — |
 
-> ⚠️ **À re-vérifier via Légifrance dès l'adoption de la LF 2027** (fin 2026). Si elle modifie l'art. 200 CGI, créer un millésime 2027 dédié ; sinon, laisser l'héritage 2026 s'appliquer. Point de veille supplémentaire : l'art. 200 a une bascule de version consolidée programmée au **01/09/2026** (mécanique de versionnage LF 2026) — vérifier qu'elle n'emporte pas de changement de fond.
+> ⚠️ **À re-vérifier via Légifrance dès l'adoption de la LF 2027** (fin 2026). Si elle modifie l'art. 200 CGI, créer un millésime 2027 dédié ; sinon, laisser l'héritage 2026 s'appliquer. Bascule de version annoncée au **01/09/2026** : **vérifiée le 03/11/2026**, aucune version de l'art. 200 n'a pris effet à cette date — la version en vigueur au 03/11/2026 est celle du 21/02/2026 (loi n° 2026-103). Ticket #2.
 
 ### 6.6 Mécanique d'estimation (algorithme)
 
 1. Rattacher chaque don à un **régime** (via la catégorie de son **bénéficiaire**) et sélectionner le **barème applicable à sa date de versement**.
 2. Appliquer d'abord les **sous-plafonds spécifiques** (ex. `ir_general_fondation_entreprise` 1 500 €) : le surplus bascule vers le régime de repli.
 3. Pour chaque régime à taux majoré (**75 %** : `ir_coluche`) : appliquer le taux **dans la limite de son plafond** ; le **surplus bascule** vers `ir_general`.
-4. Appliquer les régimes à **plafond en euros** (`ir_partis` 15 000 €, `ir_campagne`) — **hors** de la limite des 20 %.
+4. Ramener les régimes à **plafond en euros** à leur plafond (`ir_partis` 15 000 €, `ir_campagne`), puis les soumettre à la limite des 20 % **partagée** avec `ir_general`, qui la consomme en premier (même taux : même réduction). La fraction des dons aux partis au-delà de 15 000 € n'est **pas** reportable ([F427](https://www.service-public.gouv.fr/particuliers/vosdroits/F427)). *Corrigé le 03/11/2026 : les partis étaient comptés hors des 20 %, ce qui surestimait.*
 5. Cumuler avec le **`ir_general` (66 %)**, plafonné à **20 % du revenu imposable** (si renseigné).
 6. **Reporter** l'excédent au-delà des 20 % sur les **5 années suivantes**.
 7. **IFI/mécénat** (si activés) : filières de calcul séparées ; appliquer le **non-cumul IR/IFI** sur une même somme.
@@ -543,7 +544,7 @@ Ce fichier `SPECIFICATIONS.md` reste l'**index / source de vérité** ; les fich
 1. **Valeurs secondaires** : à ne vérifier que si tu les utilises un jour (IFI 50 000 €, dons de campagne). Rien de bloquant pour le MVP.
 
 **Veille**
-- Re-vérifier l'art. 200 CGI dès l'adoption de la **LF 2027** (fin 2026) et lors de la bascule de version au **01/09/2026**.
+- Re-vérifier l'art. 200 CGI dès l'adoption de la **LF 2027** (fin 2026). (Bascule du 01/09/2026 vérifiée le 03/11/2026 : sans effet.)
 
 ---
 
