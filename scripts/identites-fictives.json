@@ -9,6 +9,7 @@
     "Parti Gamma": "bénéficiaire fictif de l'exemple fiscal 2025"
   },
   "personnes": {},
+  "dossiers": {},
   "sigles": [
     "APRÈS",
     "AVANT",
@@ -25,7 +26,6 @@
     "OWASP",
     "PDF",
     "PER",
-    "PUBLIC",
     "README",
     "RUP",
     "SIMPLE",

@@ -2,7 +2,7 @@
 /**
  * List-dons — prototype fonctionnel (Node/Express).
  * Sert l'API + l'IHM statique. Persistance JSON. Auth mono-foyer (JWT cookie).
- * ⚠️ Prototype de test — l'implémentation cible est en Rust (voir specs).
+ * Implémentation retenue (décision du 19/07/2026) : la cible Rust est abandonnée.
  */
 const path = require('path');
 const fs = require('fs');

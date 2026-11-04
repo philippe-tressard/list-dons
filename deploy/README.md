@@ -36,9 +36,11 @@ docker image prune -f --filter label=com.docker.compose.project=listdons
 ## Étapes (sur le RPi2)
 
 ```bash
-# 1. Récupérer le code (dépôt public)
-git clone https://github.com/philippe-tressard/list-dons.git
-cd list-dons/deploy
+# 1. Copier le code depuis le poste : deploy/ et prototype/ dans ~/list-dons
+#    (le nœud n'a pas de clone git ; la copie ne transporte ni .git ni node_modules)
+#    depuis le poste :
+#      rsync -a --exclude node_modules --exclude data deploy prototype <utilisateur>@<ip-du-rpi2>:list-dons/
+cd ~/list-dons/deploy
 
 # 2. Config (optionnel : changer le port, activer le check santé de 5Hostachy)
 cp .env.example .env
@@ -63,11 +65,11 @@ Les données (base + uploads) sont dans le volume `listdons_data`, indépendant 
 
 ## Sauvegarde (isolée)
 
-`backup-listdons.sh` sauvegarde le volume `listdons_data` (base + reçus) vers `~/list-dons/backups`, en `.tar.gz` horodaté, avec rotation (**7 dernières = 1 semaine**, les plus anciennes sont supprimées). Tourne en `ptressard`, ne touche que les ressources `listdons_*`.
+`backup-listdons.sh` sauvegarde le volume `listdons_data` (base + reçus) vers `~/list-dons/backups`, en `.tar.gz` horodaté, avec rotation (**7 dernières = 1 semaine**, les plus anciennes sont supprimées). Tourne sous le compte de déploiement (sans `sudo`), ne touche que les ressources `listdons_*`.
 
 Cron quotidien (04:15, hors des créneaux 5Hostachy) :
 ```bash
-15 4 * * * /home/ptressard/list-dons/deploy/backup-listdons.sh >> /home/ptressard/list-dons/backups/backup.log 2>&1
+15 4 * * * $HOME/list-dons/deploy/backup-listdons.sh >> $HOME/list-dons/backups/backup.log 2>&1
 ```
 Lancer à la demande : `bash ~/list-dons/deploy/backup-listdons.sh`
 
