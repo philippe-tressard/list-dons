@@ -41,7 +41,10 @@ app.use((req, res, next) => {
   next();
 });
 
-const upload = multer({ dest: store.UPLOAD_DIR, limits: { fileSize: 15 * 1024 * 1024 } });
+// defParamCharset utf8 : les navigateurs envoient le nom de fichier en UTF-8 ; le défaut
+// latin1 de multer le stockait mal décodé (« reÃ§u »), d'où un U+0080 qui a cassé le PDF le
+// 19/07/2026 (journal 3.4). Test : test/justificatifs.test.js.
+const upload = multer({ dest: store.UPLOAD_DIR, defParamCharset: 'utf8', limits: { fileSize: 15 * 1024 * 1024 } });
 // Montant € → centimes (entier ≥ 0) ; renvoie null si invalide (jamais de NaN en base).
 function montantCents(v) {
   const n = parseFloat(String(v).replace(',', '.'));

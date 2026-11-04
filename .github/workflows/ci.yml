@@ -24,6 +24,23 @@ jobs:
         working-directory: prototype
         run: node lib/fiscal.selftest.js
 
+  application:
+    name: Application (tests, dépendances vulnérables)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prototype
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: Tests (téléversement des reçus, récapitulatif PDF)
+        run: npm test
+      - name: Aucune dépendance de production vulnérable (high ou critical)
+        run: npm audit --omit=dev --audit-level=high
+
   donnees-fictives:
     name: Données personnelles (liste blanche)
     runs-on: ubuntu-latest
