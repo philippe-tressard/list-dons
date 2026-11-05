@@ -16,10 +16,14 @@ function portLibre() {
   });
 }
 
-/** Démarre le serveur sur une base pré-remplie `db` ; rend { url, dossier, arreter }. */
-async function demarrer(db) {
+/**
+ * Démarre le serveur sur une base pré-remplie `db`, avec les reçus déjà stockés
+ * `fichiers` ({ nom: contenu }) ; rend { url, dossier, journal, arreter }.
+ */
+async function demarrer(db, fichiers = {}) {
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'listdons-test-'));
   fs.mkdirSync(path.join(dossier, 'uploads'));
+  for (const [nom, contenu] of Object.entries(fichiers)) fs.writeFileSync(path.join(dossier, 'uploads', nom), contenu);
   fs.writeFileSync(path.join(dossier, 'db.json'), JSON.stringify(db));
   const port = await portLibre();
   const proc = spawn(process.execPath, [path.join(__dirname, '..', 'server.js')], {

@@ -8,6 +8,9 @@
     "Association Bêta": "bénéficiaire fictif de l'exemple fiscal 2025",
     "Parti Gamma": "bénéficiaire fictif de l'exemple fiscal 2025"
   },
+  "fichiers": {
+    "ancien.pdf": "nom d'un reçu fictif stocké avant le contrôle de type (prototype/test/justificatifs.test.js)"
+  },
   "personnes": {},
   "dossiers": {},
   "sigles": [
