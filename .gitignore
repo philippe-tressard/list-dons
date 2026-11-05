@@ -11,16 +11,8 @@
 *.sqlite
 *.sqlite3
 
-# --- Rust (backend) ---
-/target/
-**/*.rs.bk
-
-# --- Node / SvelteKit (front) ---
+# --- Node ---
 node_modules/
-/front/.svelte-kit/
-/front/build/
-/front/dist/
-.vite/
 
 # --- Outils / OS / éditeurs ---
 .DS_Store
