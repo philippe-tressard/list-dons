@@ -114,7 +114,7 @@ async function vueDemo({ est, dons, benefs, rappel, tousLesDons, ex }) {
 async function render() {
   const s = await api('GET', '/session');
   if (!s.authenticated) return renderAuth(s);
-  state.cats = await api('GET', '/categories');
+  state.cats = await api('GET', '/categories'); state.version = s.version;
   await renderMain();
 }
 
@@ -232,7 +232,7 @@ async function renderMain() {
     <main id="content"></main>
     <p class="disclaimer">Estimation indicative — ne remplace pas votre déclaration officielle ni un conseil fiscal.</p>
     <footer class="app-footer">
-      © ${anneeCourante} List-dons &nbsp;·&nbsp; Licence MIT &nbsp;·&nbsp; <a href="/mentions-legales">Mentions légales</a>
+      © ${anneeCourante} List-dons &nbsp;·&nbsp; v${esc(state.version || '')} &nbsp;·&nbsp; Licence MIT &nbsp;·&nbsp; <a href="/mentions-legales">Mentions légales</a>
     </footer>`;
   $('#yearsel').onchange = (e) => { state.year = parseInt(e.target.value, 10); renderMain(); };
   $('#logout').onclick = async () => { await api('POST', '/logout'); render(); };
