@@ -49,6 +49,7 @@
 | 2026-11-03 | 3.8     | Claude | **Barème sourcé et corrigé** (tickets #6, #2, audit du 03/11/2026) : chaque valeur porte sa source officielle datée (`SOURCES` dans `lib/fiscal.js`, refusé sans elle par l'auto-test). **Deux surestimations corrigées** : (1) plafond « Coluche » 2025 ramené à **1 000 €** (2 000 € seulement pour les dons à compter du 14/10/2025, répartition intra-année non documentée → prudence) et millésime **2026 propre** à 2 000 € ; (2) dons aux **partis** désormais **dans** la limite des 20 % du revenu, partagée avec l'intérêt général. Bascule de l'art. 200 au 01/09/2026 vérifiée : sans effet. Plafond des dons de campagne (4 600 € par élection) sourcé. |
 | 2026-11-05 | 3.9     | Claude | **Type des reçus contrôlé** (ticket #17) : un justificatif n'est admis que si ses premiers octets sont ceux d'un PDF, d'un JPEG ou d'un PNG (`prototype/lib/justificatifs.js`) ; sinon HTTP 415 et fichier effacé. Le type enregistré et servi est celui des octets ; le téléchargement est toujours une pièce jointe, et un reçu d'avant ce contrôle au type non admis est servi en `application/octet-stream`. L'écran signale le refus au lieu d'échouer en silence. Tests : `test/justificatifs.test.js`. |
 | 2026-11-05 | 3.10    | Claude | **Version visible** (ticket #18) : la version de `prototype/package.json`, lue en un seul endroit du serveur, est servie par `/api/session` (sans connexion) et affichée en pied de page de l'application et des mentions légales ; elle prouve après un déploiement ce qui tourne (`deploy/README.md`, « Exploitation »). Test : `test/version.test.js`. Le lien du pied de page ne se coupe plus sur mobile. |
+| 2026-11-05 | 3.11    | Claude | **Cultes sourcés** (ticket #19) : la fin du taux de 75 % (versements du 02/06/2021 au 31/12/2022, loi n° 2021-953 art. 18) et le régime actuel (art. 200, 1, e) du CGI, absent du 1 ter, version du 21/02/2026) sont vérifiés sur Légifrance et cités au §6.2 ; « à ma connaissance » retiré. Aucun changement du moteur : ces dons restaient en `ir_general` (66 %). `.gitignore` débarrassé des sections de la cible abandonnée. |
 
 ---
 
@@ -252,7 +253,7 @@ Bareme {
 | `ir_campagne` | **Dons de campagne** (association de financement électorale / mandataire financier) (3) | **66 %** | dons retenus dans la limite de **4 600 € par élection** ([F427](https://www.service-public.gouv.fr/particuliers/vosdroits/F427), vérifiée le 15/04/2026) — régime **non implémenté** dans le moteur |
 | `ir_frais_benevolat` | **Frais de bénévolat** avec renonciation au remboursement (barème kilométrique) | **66 %** | dans `ir_general` (20 %) |
 
-> **Cas des associations cultuelles** : le taux **75 %** était un dispositif **temporaire (2 juin 2021 → 31 déc. 2022, loi n° 2021-953 art. 18)**, **non reconduit à ma connaissance pour 2025-2026**. Par défaut → **`ir_general` (66 %)**. À re-vérifier uniquement si tu fais un don cultuel et qu'une LF le réactive.
+> **Cas des associations cultuelles** : le taux **75 %** était un dispositif **temporaire**, pour les versements **du 2 juin 2021 au 31 décembre 2022** ([loi n° 2021-953 du 19 juillet 2021 de finances rectificative, art. 18](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000043805899)). Dans la version de l'[art. 200 du CGI](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053543932) en vigueur depuis le 21/02/2026, les associations cultuelles figurent au **1, e)** (taux de droit commun) et **ne figurent pas au 1 ter** (75 %) — vérifié le 05/11/2026. → **`ir_general` (66 %)**, à re-vérifier à chaque nouvelle loi de finances (veille LF 2027, §13).
 
 **B. Réduction d'IFI — art. 978 CGI** *(désactivé par défaut — voir le profil fiscal §5.2)*
 
@@ -277,7 +278,7 @@ Réservé aux **entreprises**. L'application cible un **particulier** → **non 
 | **`ir_partis`** | **66 %** | **15 000 €** (dons + cotisations aux partis), **et** dans la limite des 20 % du revenu partagée avec `ir_general` | **7UH** | fraction au-delà de 15 000 € non reportable |
 | **`ir_campagne`** | **66 %** | 4 600 € par élection (non implémenté) | 7UH | compte de campagne |
 
-> Cases **usuelles de la 2042 RICI** (voir l'exemple §6.7). Associations cultuelles : **66 %** (`ir_general`, case 7UF) — le dispositif temporaire 75 % a pris fin le 31/12/2022 (cf. §6.2).
+> Cases **usuelles de la 2042 RICI** (voir l'exemple §6.7). Associations cultuelles : **66 %** (`ir_general`, case 7UF) — le dispositif temporaire 75 % a pris fin le 31/12/2022 (sources au §6.2).
 
 ### 6.4 Barème 2026 (revenus 2026 · déclaration 2027)
 
@@ -536,7 +537,7 @@ Ce fichier `SPECIFICATIONS.md` reste l'**index / source de vérité** ; les fich
 - ✅ **Isolation stricte** = exigence non négociable (§8.1).
 
 - ✅ **Périmètre = particulier** : MVP centré sur la **réduction d'impôt sur le revenu (art. 200)**. **Mécénat entreprise (238 bis) hors périmètre**. **IFI (978) désactivé par défaut**, derrière le paramètre `assujetti_ifi` (§5.2).
-- ✅ **Cultes = 66 %** (dispositif 75 % expiré fin 2022, non reconduit — vérifié Légifrance).
+- ✅ **Cultes = 66 %** (dispositif 75 % expiré le 31/12/2022, absent de l'art. 200 en vigueur — vérifié sur Légifrance le 05/11/2026, sources au §6.2).
 - ✅ **Résilience SIMPLE** : `restart: unless-stopped` + sauvegarde quotidienne + restauration testée. Pas de monitoring/failover.
 - ✅ **Authentification obligatoire** (mono-foyer, un seul compte, pas d'inscription publique) ; fenêtre de connexion sobre ([`authentification.md`](specs/web/authentification.md)).
 - ✅ **Contrainte forte anti-complexité / factorisation** ([`principes-code.md`](specs/architecture/principes-code.md)) : simplicité, modularité par domaine, moteur fiscal = données, zéro duplication.
