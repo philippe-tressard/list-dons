@@ -16,6 +16,7 @@ const multer = require('multer');
 const store = require('./lib/store');
 const fiscal = require('./lib/fiscal');
 const pdf = require('./lib/pdf');
+const justificatifs = require('./lib/justificatifs');
 
 store.load();
 
@@ -309,7 +310,13 @@ api.post('/dons/:id/justificatifs', upload.single('fichier'), (req, res) => {
   const d = db.dons.find((x) => x.id === req.params.id);
   if (!d) return res.status(404).json({ error: 'Don introuvable' });
   if (!req.file) return res.status(400).json({ error: 'Aucun fichier' });
-  const j = { id: store.uid(), nom: req.file.originalname, fichier: path.basename(req.file.path), type: req.file.mimetype };
+  // Le type se lit dans les octets, jamais dans ce qu'annonce le client (ticket #17).
+  const type = justificatifs.typeDuFichier(req.file.path);
+  if (!type) {
+    fs.unlinkSync(req.file.path);
+    return res.status(415).json({ error: justificatifs.MESSAGE_REFUS });
+  }
+  const j = { id: store.uid(), nom: req.file.originalname, fichier: path.basename(req.file.path), type };
   d.justificatifs.push(j); store.save(); res.json(j);
 });
 api.get('/justificatifs/:donId/:jId', (req, res) => {
@@ -317,7 +324,9 @@ api.get('/justificatifs/:donId/:jId', (req, res) => {
   const d = db.dons.find((x) => x.id === req.params.donId);
   const j = d?.justificatifs.find((x) => x.id === req.params.jId);
   if (!j) return res.status(404).end();
-  res.download(path.join(store.UPLOAD_DIR, j.fichier), j.nom);
+  // Toujours en pièce jointe, avec le type contrôlé : ni l'extension du nom ni un type
+  // annoncé avant le contrôle ne décident de la façon dont le navigateur l'interprète.
+  res.download(path.join(store.UPLOAD_DIR, j.fichier), j.nom, { headers: { 'Content-Type': justificatifs.typeServi(j.type) } });
 });
 api.delete('/dons/:donId/justificatifs/:jId', (req, res) => {
   const db = store.get();
