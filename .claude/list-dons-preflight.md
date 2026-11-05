@@ -27,7 +27,7 @@
    • Montants en CENTIMES (entiers), jamais en flottant.
    • Aucun chiffre fiscal non sourcé : référence Légifrance + date d'effet à côté de
      la valeur. Principe de prudence : en cas de doute, l'estimation SOUS-ESTIME.
-   • Dépôt PUBLIC : aucune donnée personnelle, exemples fictifs, IP LAN masquées.
+   • Dépôt public (depuis le 06/11/2026) : aucune donnée personnelle, exemples fictifs, IP LAN masquées.
    • Décision : agir sans demander sur le réversible ; ne solliciter que pour
      l'irréversible (données, push/PR sur main, envoi, action prod durable).
    • Langue : français exclusif (interface + nommage des champs).
