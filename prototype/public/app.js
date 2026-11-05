@@ -477,7 +477,7 @@ function donModal(don, benefs) {
         if (freq === 'unique') {
           const created = await api('POST', '/dons', commun);
           const fichier = m.querySelector('#pj').files[0];
-          if (fichier) { const fd = new FormData(); fd.append('fichier', fichier); await api('POST', '/dons/' + created.id + '/justificatifs', fd, true); }
+          if (fichier) { const fd = new FormData(); fd.append('fichier', fichier); await api('POST', '/dons/' + created.id + '/justificatifs', fd, true).catch((e) => e.message !== 'auth' && alert('Don enregistré, mais le reçu n’a pas été joint : ' + e.message)); }
         } else {
           const r = await api('POST', '/recurrents', { beneficiaireId: benefId, montant: commun.montant, frequence: freq, dateDebut: commun.date, moyen: commun.moyen, note: commun.note, annee: state.year });
           alert(r.versementsGeneres + ' versement(s) généré(s) pour ' + state.year + '.');
@@ -507,7 +507,7 @@ function wireAttachments(m, don) {
   wireRm();
   m.querySelector('#e_upl').onchange = async (e) => {
     const fd = new FormData(); fd.append('fichier', e.target.files[0]);
-    await api('POST', '/dons/' + don.id + '/justificatifs', fd, true); await refresh();
+    await api('POST', '/dons/' + don.id + '/justificatifs', fd, true).catch((err) => err.message !== 'auth' && alert(err.message)); e.target.value = ''; await refresh();
   };
 }
 
