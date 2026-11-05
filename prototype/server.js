@@ -17,6 +17,8 @@ const store = require('./lib/store');
 const fiscal = require('./lib/fiscal');
 const pdf = require('./lib/pdf');
 const justificatifs = require('./lib/justificatifs');
+// Version servie, lue à un seul endroit : prouve après déploiement ce qui tourne (standards/08 §6).
+const { version: VERSION } = require('./package.json');
 
 store.load();
 
@@ -94,7 +96,7 @@ function requireAuth(req, res, next) {
 
 app.get('/api/session', (req, res) => {
   const db = store.get();
-  res.json({ authenticated: !!currentUser(req), hasAccount: !!db.utilisateur, identifiant: db.utilisateur?.identifiant || null });
+  res.json({ authenticated: !!currentUser(req), hasAccount: !!db.utilisateur, identifiant: db.utilisateur?.identifiant || null, version: VERSION });
 });
 
 app.post('/api/setup', (req, res) => {
@@ -393,7 +395,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 // pour rester compatible avec la CSP stricte (script-src 'self').
 app.get('/mentions-legales', (req, res) => {
   const html = fs.readFileSync(path.join(__dirname, 'public', 'mentions-legales.html'), 'utf-8')
-    .replace(/\{\{ANNEE\}\}/g, String(new Date().getFullYear()));
+    .replace(/\{\{ANNEE\}\}/g, String(new Date().getFullYear())).replace(/\{\{VERSION\}\}/g, VERSION);
   res.type('html').send(html);
 });
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));

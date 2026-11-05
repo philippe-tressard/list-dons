@@ -61,6 +61,12 @@ docker compose -f docker-compose.rpi2.yml logs -f   # logs
 docker compose -f docker-compose.rpi2.yml down      # arrêter / désinstaller (5Hostachy intact)
 ```
 
+Après un déploiement, la version **servie** prouve ce qui tourne (elle doit être celle de `prototype/package.json`) ; elle est aussi en pied de page de l'application :
+
+```bash
+curl -s http://localhost:8080/api/session   # … "version":"x.y.z"
+```
+
 Les données (base + uploads) sont dans le volume `listdons_data`, indépendant de 5Hostachy.
 
 ## Sauvegarde (isolée)

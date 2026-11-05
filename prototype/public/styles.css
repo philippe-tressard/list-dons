@@ -26,7 +26,7 @@ nav.tabs button.active { background: var(--surface); color: var(--primary); font
 main { max-width: 900px; margin: 0 auto; padding: 1rem; }
 .btn-demo-on { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
 .app-footer { text-align: center; padding: .75rem 1rem; font-size: .75rem; color: var(--muted); border-top: 1px solid var(--border); letter-spacing: .02em; max-width: 900px; margin: 0 auto; }
-.app-footer a { color: var(--muted); }
+.app-footer a { color: var(--muted); white-space: nowrap; }
 .app-footer a:hover { color: var(--primary); }
 
 /* Cards */
