@@ -58,7 +58,7 @@ Crée le compte de démonstration et l'exemple fiscal 2025 (fictif, specs §6.7)
 npm test
 ```
 
-Lance une instance isolée du serveur (dossier de données temporaire via `LISTDONS_DATA_DIR`, port libre — jamais les données réelles) et vérifie le téléversement des reçus (nom accentué conservé, taille maximale de 15 Mo, session obligatoire) et la génération du récapitulatif PDF.
+Lance une instance isolée du serveur (dossier de données temporaire via `LISTDONS_DATA_DIR`, port libre — jamais les données réelles) et vérifie le téléversement des reçus (nom accentué conservé, taille maximale de 15 Mo, session obligatoire, seuls PDF, JPEG et PNG admis — reconnus par leurs premiers octets, pas par le type annoncé ni l'extension — et servis en pièce jointe avec ce type) et la génération du récapitulatif PDF.
 
 ## Limites (assumées, MVP)
 

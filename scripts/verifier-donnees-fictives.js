@@ -35,6 +35,7 @@ const MINIMUM_FICHIERS = 10;
 
 const L = '\\p{L}';
 const SIGLES_VUS = new Set();
+const FICHIERS_VUS = new Set();
 const REGLES = [
   {
     nom: 'courriel',
@@ -60,7 +61,8 @@ const REGLES = [
     nom: 'nom de fixture',
     motif: /\b(?:mk|beneficiaire)\(\s*['"]([^'"]+)['"]|\bnom\s*[:=]\s*['"]([^'"]+)['"]/gu,
     valeur: (m) => m[1] || m[2],
-    autorise: (v) => v in LISTE.beneficiaires,
+    // `nom:` désigne aussi le nom d'un reçu dans les fixtures : déclaré à part (« fichiers »).
+    autorise: (v) => v in LISTE.beneficiaires || (v in LISTE.fichiers && FICHIERS_VUS.add(v)),
   },
   // Infrastructure du foyer (ticket #3) : une adresse exacte du réseau local, un compte
   // SSH ou un dossier personnel désignent la machine réelle. La documentation écrit
@@ -116,6 +118,8 @@ function controler() {
   }
   const inutiles = LISTE.sigles.filter((x) => !SIGLES_VUS.has(x));
   if (inutiles.length) fautes.push(`scripts/identites-fictives.json — sigle(s) qui ne servent plus, à retirer : ${inutiles.join(', ')}`);
+  const fichiersInutiles = Object.keys(LISTE.fichiers).filter((x) => !FICHIERS_VUS.has(x));
+  if (fichiersInutiles.length) fautes.push(`scripts/identites-fictives.json — nom(s) de reçu qui ne servent plus, à retirer : ${fichiersInutiles.join(', ')}`);
   if (lus < MINIMUM_FICHIERS) { console.error(`INCONNU : ${lus} fichier(s) lu(s), minimum ${MINIMUM_FICHIERS}.`); return 2; }
   if (fautes.length) {
     console.error(fautes.join('\n'));
