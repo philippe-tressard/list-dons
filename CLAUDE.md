@@ -72,7 +72,7 @@ duplication, règle des 3, refactoring continu. C'est
 
 ### Documentation publique
 
-Le dépôt est destiné à être public (privé à ce jour, ticket #10) : **aucune donnée personnelle**, exemples fictifs, adresses LAN
+Le dépôt est **public** depuis le 06/11/2026 (ticket #10) : **aucune donnée personnelle**, exemples fictifs, adresses LAN
 masquées — `standards/12-documentation.md` §7. Les specs peuvent dire qu'elles
 s'inspirent de 5Hostachy, mais restent **instanciées à List-dons** : pas de copie, pas
 de tableau comparatif.
