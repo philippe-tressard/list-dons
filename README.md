@@ -6,8 +6,8 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
-  <img src="https://img.shields.io/badge/statut-MVP%20déployé-brightgreen.svg" alt="Statut : MVP déployé" />
-  <img src="https://img.shields.io/badge/stack-Node%2FExpress-339933.svg" alt="Stack Node/Express" />
+  <img src="https://img.shields.io/badge/statut-MVP%20d%C3%A9ploy%C3%A9-brightgreen.svg" alt="Statut : MVP déployé" />
+  <img src="https://img.shields.io/badge/stack-Node.js%20%2B%20Express-339933.svg" alt="Stack Node/Express" />
 </p>
 
 ---
