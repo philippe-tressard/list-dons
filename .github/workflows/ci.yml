@@ -101,11 +101,17 @@ jobs:
           # conflit n'a pas de diff propre et n'est pas compté. Borne déclarée : le contenu
           # d'une fusion vient de ses parents, tous lus ; une résolution de conflit, elle,
           # n'est pas scannée.
-          attendu=$(git rev-list --all --no-merges --count)
+          # Autre borne : un commit qui ne fait que supprimer des fichiers n'ajoute aucune
+          # ligne et gitleaks ne le compte pas ; ce qu'il retire a été lu dans le commit
+          # qui l'avait ajouté. On attend donc les commits qui touchent au moins un
+          # fichier sans le supprimer.
+          attendu=$(git rev-list --all --no-merges | while read -r c; do
+            [ -n "$(git diff-tree --root --no-commit-id --name-only -r --diff-filter=d "$c")" ] && echo "$c"
+          done | wc -l | tr -d ' ')
           docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo" \
             ghcr.io/gitleaks/gitleaks:v8.18.4 \
             detect --source=/repo --log-opts="--all" --redact --verbose 2>&1 | tee gitleaks.log
           # Un scan qui n'a pas lu tout l'historique n'est pas un vert : on compare.
           lu=$(grep -oE '[0-9]+ commits scanned' gitleaks.log | grep -oE '^[0-9]+' || true)
-          echo "Commits hors fusions dans le dépôt : $attendu ; lus par gitleaks : ${lu:-aucun}"
+          echo "Commits hors fusions et hors suppressions pures : $attendu ; lus par gitleaks : ${lu:-aucun}"
           [ "$lu" = "$attendu" ] || { echo "INCONNU : gitleaks n'a pas lu tout l'historique."; exit 1; }
